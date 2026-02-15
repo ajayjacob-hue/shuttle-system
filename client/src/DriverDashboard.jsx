@@ -187,13 +187,10 @@ const DriverDashboard = () => {
                 </div>
             </div>
             {/* Footer Info */}
-            {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
                 VIT Shuttle System v1.3
             </p>
         </div>
-        </div >
-
     );
 };
 
