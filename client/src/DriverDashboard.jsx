@@ -107,7 +107,12 @@ const DriverDashboard = () => {
                 <div className="bg-blue-600 p-6 text-white flex justify-between items-center shadow-md">
                     <div>
                         <h2 className="text-xl font-bold opacity-90">Driver Portal</h2>
-                        <p className="text-blue-100 text-2xl font-black tracking-tight">{myBusId}</p>
+                        <div className="flex items-baseline gap-2">
+                            <p className="text-blue-100 text-2xl font-black tracking-tight">{myBusId}</p>
+                            <span className={`text-xs font-bold uppercase ${socket?.connected ? 'text-green-300' : 'text-red-300 animate-pulse'}`}>
+                                {socket?.connected ? 'Connected' : 'Reconnecting...'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

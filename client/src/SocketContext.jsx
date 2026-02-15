@@ -9,8 +9,8 @@ export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
 
     useEffect(() => {
-        // Connect to backend (Env Var > Localhost > Window Hostname)
         const serverUrl = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000`;
+        console.log('Connecting to Socket URL:', serverUrl);
         const newSocket = io(serverUrl);
         setSocket(newSocket);
 

@@ -157,7 +157,10 @@ const StudentDashboard = () => {
                         <h1 className="font-bold text-lg flex items-center gap-2 text-gray-800 md:text-white">
                             <Bus size={20} className="text-blue-600 md:text-white" /> VIT Shuttle
                         </h1>
-                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System</p>
+                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System v1.2</p>
+                        <p className={`text-[10px] uppercase font-bold mt-1 ${socket?.connected ? 'text-green-600 md:text-green-300' : 'text-red-500 animate-pulse'}`}>
+                            {socket?.connected ? '● Server Connected' : '○ Connecting...'}
+                        </p>
                     </div>
                     <div className="text-[10px] bg-green-100 text-green-700 md:bg-blue-800 md:text-blue-100 px-2 py-1 rounded-full">
                         {activeBuses.length} Active
