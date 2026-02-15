@@ -54,10 +54,8 @@ const StudentDashboard = () => {
             if (selectedBus === data.socketId) setSelectedBus(null);
         };
 
-        socket.on('initial_drivers', (list) => {
-            const map = {};
-            list.forEach(d => map[d.socketId] = d);
-            setDrivers(map);
+        socket.on('initial_drivers', (driversMap) => {
+            setDrivers(prev => ({ ...prev, ...driversMap }));
         });
 
         socket.on('shuttle_moved', handleMove);
