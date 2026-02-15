@@ -106,7 +106,8 @@ const StudentDashboard = () => {
                             <Marker position={[userLoc.lat, userLoc.lng]} icon={L.divIcon({
                                 className: 'user-location-marker',
                                 html: `<div style="background-color: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
-                                iconSize: [20, 20]
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10]
                             })}>
                                 <Popup>You are here</Popup>
                             </Marker>
