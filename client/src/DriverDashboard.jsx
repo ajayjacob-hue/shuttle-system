@@ -49,16 +49,15 @@ const DriverDashboard = () => {
     const [sentCount, setSentCount] = useState(0);
 
     // Effect to emit location when sharing and location updates
+    // MODIFIED: This effect is now REMOVED/Comments out because we emit DIRECTLY in the Geolocation Callback
+    // This prevents "React State Throttling" from blocking updates in the background.
+    /* 
     useEffect(() => {
         if (isSharing && socket && location) {
-            socket.emit('update_location', {
-                driverId: myBusId,
-                lat: location.lat,
-                lng: location.lng
-            });
-            setSentCount(prev => prev + 1);
+            socket.emit('update_location', ...);
         }
-    }, [isSharing, socket, location, myBusId]);
+    }, ...); 
+    */
 
     // BACKGROUND ALIVE HACK (Video + Heartbeat)
     // Audio alone often fails. Video is treated with higher priority by browsers.
@@ -175,7 +174,22 @@ const DriverDashboard = () => {
             const id = navigator.geolocation.watchPosition(
                 (pos) => {
                     const { latitude, longitude } = pos.coords;
-                    setLocation({ lat: latitude, lng: longitude });
+                    const newLocation = { lat: latitude, lng: longitude };
+
+                    // 1. UPDATE UI
+                    setLocation(newLocation);
+
+                    // 2. CRITICAL: EMIT DIRECTLY (Bypass React State Throttle)
+                    // In background, React state updates might be paused/throttled.
+                    // Emitting directly ensures the packet goes out if GPS is active.
+                    if (socket && socket.connected) {
+                        socket.emit('update_location', {
+                            driverId: myBusId,
+                            lat: latitude,
+                            lng: longitude
+                        });
+                        setSentCount(prev => prev + 1);
+                    }
                 },
                 (err) => {
                     console.error(err);
@@ -183,7 +197,11 @@ const DriverDashboard = () => {
                     setStatus('OFFLINE');
                     setIsSharing(false);
                 },
-                { enableHighAccuracy: true }
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
             );
             setWatchId(id);
         }
@@ -291,7 +309,7 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v1.6 (Ultimate)
+                VIT Shuttle System v1.7 (Direct Mode)
             </p>
 
             {/* Hidden Video for Background Keep-Alive - Base64 Safe Version */}
