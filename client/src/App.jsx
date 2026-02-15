@@ -4,7 +4,13 @@ import DriverDashboard from './DriverDashboard';
 import StudentDashboard from './StudentDashboard';
 
 function App() {
-  const [view, setView] = useState('landing'); // landing, driver, student
+  // Load saved view from localStorage (default to landing)
+  const [view, setViewState] = useState(localStorage.getItem('shuttle_last_role') || 'landing');
+
+  const setView = (role) => {
+    localStorage.setItem('shuttle_last_role', role);
+    setViewState(role);
+  };
 
   if (view === 'landing') {
     return (

@@ -23,11 +23,15 @@ const createBusIcon = () => L.divIcon({
     popupAnchor: [0, -20]
 });
 
-// Component to recenter map
+// Component to recenter map (Modified to respect user zoom)
 const MapRecenter = ({ center }) => {
     const map = useMap();
     useEffect(() => {
-        if (center) map.flyTo(center, 16);
+        if (center) {
+            // Keep current zoom level, only pan
+            const currentZoom = map.getZoom();
+            map.setView(center, currentZoom);
+        }
     }, [center, map]);
     return null;
 };
