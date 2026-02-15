@@ -30,14 +30,13 @@ io.on('connection', (socket) => {
   // Client joins as 'driver' or 'student'
   socket.on('join_role', (role) => {
     if (role === 'driver') {
-      const driverId = `Bus ${loadingBusCount++}`;
-      // Store driver with initial null location
-      activeDrivers.set(socket.id, { driverId, lat: null, lng: null, lastUpdate: null });
+      // Just join, wait for location update to register ID
+      activeDrivers.set(socket.id, { driverId: 'Pending', lat: null, lng: null, lastUpdate: null });
       socket.join('driver');
-      console.log(`Driver registered: ${driverId} (${socket.id})`);
+      console.log(`Driver joined: ${socket.id}`);
 
-      // Tell the driver their ID
-      socket.emit('login_success', { driverId });
+      // Tell the driver their ID - Removed as per instruction
+      // socket.emit('login_success', { driverId });
     } else if (role === 'student') {
       socket.join('student');
       console.log(`Socket ${socket.id} joined as ${role}`);
