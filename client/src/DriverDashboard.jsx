@@ -100,16 +100,13 @@ const DriverDashboard = () => {
     };
 
     return (
-        <div className="h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col items-center justify-center p-6">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-white/50">
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="bg-blue-600 p-6 text-white flex justify-between items-center shadow-md">
                     <div>
                         <h2 className="text-xl font-bold opacity-90">Driver Portal</h2>
                         <p className="text-blue-100 text-2xl font-black tracking-tight">{myBusId}</p>
-                    </div>
-                    <div className="bg-white/20 p-2 rounded-xl">
-                        <Bus className="w-8 h-8 text-white" />
                     </div>
                 </div>
 

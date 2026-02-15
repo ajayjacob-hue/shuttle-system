@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
           };
         }
       });
-      socket.emit('initial_drivers', Object.values(driversList));
+      socket.emit('initial_drivers', driversList);
     }
   });
 
