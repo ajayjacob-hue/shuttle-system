@@ -1,0 +1,13 @@
+{
+    "name": "shuttle-system-root",
+    "version": "1.0.0",
+    "description": "Root for Shuttle System Deployment",
+    "scripts": {
+        "start": "cd server && npm start",
+        "install": "cd server && npm install",
+        "build": "echo 'No build step for server'"
+    },
+    "engines": {
+        "node": "18.x"
+    }
+}
