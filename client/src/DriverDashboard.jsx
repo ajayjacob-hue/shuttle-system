@@ -84,10 +84,10 @@ const DriverDashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="h-[100dvh] bg-gray-50 flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md h-full max-h-[90dvh] flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="bg-blue-900 p-6 text-white flex justify-between items-center">
+                <div className="bg-blue-900 p-6 text-white flex justify-between items-center flex-shrink-0">
                     <div>
                         <h2 className="text-2xl font-bold">Driver Portal</h2>
                         <p className="text-blue-200 text-sm">Shuttle ID: BUS-01</p>
@@ -95,20 +95,20 @@ const DriverDashboard = () => {
                     <Bus className="w-10 h-10 text-white opacity-80" />
                 </div>
 
-                <div className="p-8 space-y-8">
+                <div className="p-6 flex-1 flex flex-col justify-between space-y-6">
                     {/* Status Indicator */}
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center flex-none">
                         <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-500 ${status === 'ONLINE' ? 'bg-green-100 text-green-600 ring-4 ring-green-50' :
-                            status === 'OUT_OF_BOUNDS' ? 'bg-red-100 text-red-600 ring-4 ring-red-50' :
-                                'bg-gray-100 text-gray-400'
+                                status === 'OUT_OF_BOUNDS' ? 'bg-red-100 text-red-600 ring-4 ring-red-50' :
+                                    'bg-gray-100 text-gray-400'
                             }`}>
                             {status === 'ONLINE' ? <MapPin className="w-12 h-12 animate-bounce" /> :
                                 status === 'OUT_OF_BOUNDS' ? <AlertTriangle className="w-12 h-12" /> :
                                     <Power className="w-12 h-12" />}
                         </div>
                         <h3 className={`text-xl font-bold tracking-wider ${status === 'ONLINE' ? 'text-green-600' :
-                            status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
-                                'text-gray-500'
+                                status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
+                                    'text-gray-500'
                             }`}>
                             {status === 'OUT_OF_BOUNDS' ? 'OUT OF ZONE' : status}
                         </h3>
@@ -117,29 +117,28 @@ const DriverDashboard = () => {
 
                     {/* Error Box */}
                     {errorMsg && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r">
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r flex-none">
                             <p className="text-sm text-red-700 font-semibold">{errorMsg}</p>
                         </div>
                     )}
 
-                    {/* Main Action Button */}
+                    {/* Main Action Button - Flex Grow to be huge */}
                     <button
                         onClick={isSharing ? stopSharing : startSharing}
-                        className={`w-full py-5 rounded-xl font-bold text-lg shadow-lg transform transition active:scale-95 ${isSharing
-                            ? 'bg-white border-2 border-red-500 text-red-500 hover:bg-red-50'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl'
+                        className={`w-full flex-1 min-h-[120px] rounded-xl font-bold text-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3 ${isSharing
+                                ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl'
                             }`}
                     >
-                        {isSharing ? 'STOP SHARING' : 'START SHARING LIVE LOCATION'}
+                        {isSharing ? 'STOP SHARING' : 'START NOW'}
                     </button>
 
                     {/* Debug Info */}
-                    <div className="text-center">
-                        <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Current Coordinates</p>
-                        <p className="font-mono text-gray-600">
+                    <div className="text-center flex-none pt-2">
+                        <p className="font-mono text-gray-400 text-xs">
                             {location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : '--.-----, --.-----'}
                         </p>
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-[10px] text-gray-300 mt-1">
                             Last Sent: {location ? new Date().toLocaleTimeString() : 'Waiting...'}
                         </p>
                     </div>
