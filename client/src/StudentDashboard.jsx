@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useSocket } from './SocketContext';
-import { Bus, Navigation, Map as MapIcon, Users } from 'lucide-react';
+import { Bus, Navigation } from 'lucide-react';
 
 const VIT_VELLORE = [12.9692, 79.1559];
 
@@ -36,7 +36,6 @@ const StudentDashboard = () => {
     const socket = useSocket();
     const [drivers, setDrivers] = useState({});
     const [selectedBus, setSelectedBus] = useState(null);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
 
     useEffect(() => {
         if (!socket) return;
@@ -74,85 +73,11 @@ const StudentDashboard = () => {
     const activeBuses = Object.values(drivers);
 
     return (
-        <div className="flex h-screen w-full bg-gray-100 overflow-hidden relative">
-            {/* Sidebar - Desktop: Relative, Mobile: Absolute Overlay */}
-            <div
-                className={`
-                    fixed inset-y-0 left-0 z-30 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out
-                    md:relative md:translate-x-0
-                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                    ${sidebarOpen ? 'w-80' : 'w-0'} 
-                    flex flex-col
-                `}
-            >
-                <div className="p-5 border-b bg-blue-900 text-white flex justify-between items-center">
-                    <div>
-                        <h1 className="font-bold text-lg flex items-center gap-2">
-                            <Bus size={20} /> VIT Shuttle
-                        </h1>
-                        <p className="text-xs text-blue-200 mt-1">Live Tracking System</p>
-                        <p className="text-[10px] text-blue-300 mt-1">
-                            Server Connected. Drivers: {activeBuses.length}
-                        </p>
-                    </div>
-                    {/* Close button for mobile */}
-                    <button onClick={() => setSidebarOpen(false)} className="md:hidden text-white opacity-80 hover:opacity-100">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
+        <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 overflow-hidden relative">
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        Active Shuttles ({activeBuses.length})
-                    </h3>
-
-                    {activeBuses.length === 0 ? (
-                        <div className="text-center py-10 text-gray-400">
-                            <Bus className="mx-auto mb-2 opacity-50" size={32} />
-                            <p>No shuttles active</p>
-                        </div>
-                    ) : (
-                        activeBuses.map(bus => (
-                            <button
-                                key={bus.socketId}
-                                onClick={() => {
-                                    setSelectedBus(bus.socketId);
-                                    // On mobile, close sidebar after selection
-                                    if (window.innerWidth < 768) setSidebarOpen(false);
-                                }}
-                                className={`w-full text-left p-3 rounded-lg border transition-all ${selectedBus === bus.socketId
-                                        ? 'bg-blue-50 border-blue-500 shadow-sm'
-                                        : 'hover:bg-gray-50 border-gray-100'
-                                    }`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-2 h-2 rounded-full ${selectedBus === bus.socketId ? 'bg-blue-500' : 'bg-green-500'}`}></div>
-                                        <span className="font-semibold text-gray-700">Shuttle {bus.driverId.slice(-3)}</span>
-                                    </div>
-                                    <Navigation size={14} className="text-gray-400" />
-                                </div>
-                                <div className="mt-2 text-xs text-gray-500 flex justify-between">
-                                    <span>Last Update: just now</span>
-                                    <span>~ 2 mins away</span>
-                                </div>
-                            </button>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* Main Content (Map) */}
-            <div className="flex-1 relative h-full w-full">
-                {/* Mobile Toggle (Hamburger) */}
-                <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="absolute top-4 left-4 z-[400] bg-white p-3 rounded-full shadow-lg hover:bg-gray-50 active:scale-95 transition-transform"
-                >
-                    <MapIcon size={24} className="text-gray-700" />
-                </button>
-
-                <MapContainer center={VIT_VELLORE} zoom={15} style={{ height: "100%", width: "100%", zIndex: 0 }} zoomControl={false}>
+            {/* 1. MAP CONTAINER (Order 1 on Mobile, Order 2 on Desktop) */}
+            <div className="flex-1 relative order-1 md:order-2 h-full w-full z-0">
+                <MapContainer center={VIT_VELLORE} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
                     <TileLayer
                         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -180,13 +105,61 @@ const StudentDashboard = () => {
                 </MapContainer>
             </div>
 
-            {/* Mobile Overlay Backdrop */}
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                ></div>
-            )}
+            {/* 2. INFO PANEL / SIDEBAR (Order 2 on Mobile, Order 1 on Desktop) */}
+            <div
+                className={`
+                    bg-white shadow-2xl z-20 flex flex-col transition-all duration-300
+                    w-full h-[45vh] rounded-t-3xl order-2 
+                    md:w-96 md:h-full md:rounded-none md:order-1 md:static
+                `}
+            >
+                {/* Header */}
+                <div className="p-5 border-b bg-white md:bg-blue-900 md:text-white rounded-t-3xl md:rounded-none flex justify-between items-center sticky top-0 z-10">
+                    <div>
+                        <h1 className="font-bold text-lg flex items-center gap-2 text-gray-800 md:text-white">
+                            <Bus size={20} className="text-blue-600 md:text-white" /> VIT Shuttle
+                        </h1>
+                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System</p>
+                    </div>
+                    <div className="text-[10px] bg-green-100 text-green-700 md:bg-blue-800 md:text-blue-100 px-2 py-1 rounded-full">
+                        {activeBuses.length} Active
+                    </div>
+                </div>
+
+                {/* List */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 md:bg-white">
+                    {activeBuses.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400">
+                            <Bus className="mx-auto mb-2 opacity-50" size={32} />
+                            <p>No shuttles active</p>
+                            <p className="text-xs mt-2">Waiting for drivers...</p>
+                        </div>
+                    ) : (
+                        activeBuses.map(bus => (
+                            <button
+                                key={bus.socketId}
+                                onClick={() => setSelectedBus(bus.socketId)}
+                                className={`w-full text-left p-4 rounded-xl border transition-all shadow-sm ${selectedBus === bus.socketId
+                                    ? 'bg-blue-600 text-white border-blue-600 ring-4 ring-blue-100'
+                                    : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-700'
+                                    }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-3 h-3 rounded-full ${selectedBus === bus.socketId ? 'bg-white' : 'bg-green-500'}`}></div>
+                                        <span className="font-bold text-lg">Shuttle {bus.driverId.slice(-3)}</span>
+                                    </div>
+                                    <Navigation size={16} className={selectedBus === bus.socketId ? 'text-white' : 'text-gray-400'} />
+                                </div>
+                                <div className={`mt-2 text-xs flex justify-between ${selectedBus === bus.socketId ? 'text-blue-100' : 'text-gray-500'}`}>
+                                    <span>Last Update: just now</span>
+                                    <span>~ 2 mins away</span>
+                                </div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
