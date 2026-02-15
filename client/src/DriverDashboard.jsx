@@ -10,6 +10,7 @@ const DriverDashboard = () => {
     const [watchId, setWatchId] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
     const [startTime, setStartTime] = useState(null);
+    const [myBusId, setMyBusId] = useState('Connecting...');
 
     // Timer effect
     const [elapsed, setElapsed] = useState('00:00');
