@@ -45,6 +45,8 @@ const DriverDashboard = () => {
         };
     }, [socket]);
 
+    const [sentCount, setSentCount] = useState(0);
+
     // Effect to emit location when sharing and location updates
     useEffect(() => {
         if (isSharing && socket && location && myBusId !== 'Connecting...') {
@@ -53,6 +55,7 @@ const DriverDashboard = () => {
                 lat: location.lat,
                 lng: location.lng
             });
+            setSentCount(prev => prev + 1);
         }
     }, [isSharing, socket, location, myBusId]);
 
@@ -64,6 +67,7 @@ const DriverDashboard = () => {
         setErrorMsg('');
         setStartTime(Date.now());
         setElapsed('00:00');
+        setSentCount(0);
 
         // The watchPosition is now handled by a useEffect, but we still need to set watchId
         // to be able to clear it later. The useEffect above will start watching.
@@ -155,9 +159,18 @@ const DriverDashboard = () => {
                     {isSharing ? 'STOP SHARING' : 'START SHARING'}
                 </button>
 
+                {/* Debug Info Overlay */}
+                <div className="bg-black/80 text-green-400 p-4 font-mono text-xs w-full overflow-hidden">
+                    <p>STATUS : {socket?.connected ? 'CONNECTED' : 'DISCONNECTED'}</p>
+                    <p>GPS    : {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'Signal Lost / Waiting...'}</p>
+                    <p>SENT   : {sentCount} packets</p>
+                    <p>BUS ID : {myBusId}</p>
+                    <p>FREQ   : Realtime (On Change)</p>
+                </div>
+
                 {/* Footer Info */}
                 <p className="text-center text-xs text-gray-300 mt-4">
-                    VIT Shuttle System v1.0
+                    VIT Shuttle System v1.2
                 </p>
             </div>
         </div>

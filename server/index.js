@@ -60,6 +60,7 @@ io.on('connection', (socket) => {
 
   // Driver updates location
   socket.on('update_location', (data) => {
+    console.log(`Received update from ${data.driverId}: ${data.lat}, ${data.lng}`);
     // data: { lat, lng } (driverId is now managed internally)
     // Validation
     if (!data || !data.lat || !data.lng) return;
