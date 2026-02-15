@@ -40,13 +40,24 @@ const StudentDashboard = () => {
     const socket = useSocket();
     const [drivers, setDrivers] = useState({});
     const [selectedBus, setSelectedBus] = useState(null);
+    const [now, setNow] = useState(Date.now());
+
+    // Update 'now' every second to force UI refresh for "seconds ago" timer
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         if (!socket) return;
         socket.emit('join_role', 'student');
 
         const handleMove = (data) => {
-            setDrivers(prev => ({ ...prev, [data.socketId]: data }));
+            // Stamp with client-side receipt time
+            setDrivers(prev => ({
+                ...prev,
+                [data.socketId]: { ...data, lastUpdated: Date.now() }
+            }));
         };
 
         const handleOffline = (data) => {
@@ -59,7 +70,12 @@ const StudentDashboard = () => {
         };
 
         socket.on('initial_drivers', (driversMap) => {
-            setDrivers(prev => ({ ...prev, ...driversMap }));
+            // Add initial timestamp to existing drivers
+            const stamped = {};
+            Object.keys(driversMap).forEach(key => {
+                stamped[key] = { ...driversMap[key], lastUpdated: Date.now() };
+            });
+            setDrivers(prev => ({ ...prev, ...stamped }));
         });
 
         socket.on('shuttle_moved', handleMove);
@@ -159,7 +175,7 @@ const StudentDashboard = () => {
                         <h1 className="font-bold text-lg flex items-center gap-2 text-gray-800 md:text-white">
                             <Bus size={20} className="text-blue-600 md:text-white" /> VIT Shuttle
                         </h1>
-                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System v1.2</p>
+                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System v1.9</p>
                         <p className={`text-[10px] uppercase font-bold mt-1 ${socket?.connected ? 'text-green-600 md:text-green-300' : 'text-red-500 animate-pulse'}`}>
                             {socket?.connected ? '● Server Connected' : '○ Connecting...'}
                         </p>
@@ -198,7 +214,14 @@ const StudentDashboard = () => {
                                     <Navigation size={16} className={selectedBus === bus.socketId ? 'text-white' : 'text-gray-400'} />
                                 </div>
                                 <div className={`mt-2 text-xs flex justify-between ${selectedBus === bus.socketId ? 'text-blue-100' : 'text-gray-500'}`}>
-                                    <span>Last Update: just now</span>
+                                    <span>
+                                        Last Update: {(() => {
+                                            const diff = Math.floor((now - (bus.lastUpdated || Date.now())) / 1000);
+                                            if (diff < 5) return 'just now';
+                                            if (diff < 60) return `${diff}s ago`;
+                                            return `${Math.floor(diff / 60)}m ago`;
+                                        })()}
+                                    </span>
                                     <span>~ 2 mins away</span>
                                 </div>
                             </button>
