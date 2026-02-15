@@ -44,6 +44,18 @@ const DriverDashboard = () => {
         };
     }, [socket]);
 
+    // Effect to emit location when sharing and location updates
+    useEffect(() => {
+        if (isSharing && socket && location && myBusId !== 'Connecting...') {
+            socket.emit('update_location', {
+                driverId: myBusId,
+                lat: location.lat,
+                lng: location.lng
+            });
+        }
+    }, [isSharing, socket, location, myBusId]);
+
+
     const startSharing = () => {
         if (!socket) return;
         setStatus('ONLINE');
@@ -52,16 +64,20 @@ const DriverDashboard = () => {
         setStartTime(Date.now());
         setElapsed('00:00');
 
+        // The watchPosition is now handled by a useEffect, but we still need to set watchId
+        // to be able to clear it later. The useEffect above will start watching.
+        // We need to ensure the watchId is set correctly from that useEffect.
+        // For now, we'll rely on the useEffect to manage the watch, and this function
+        // primarily toggles the `isSharing` state which then triggers the emit effect.
+        // The actual watchId setting is implicitly handled by the new useEffect.
+        // To make it explicit, we could pass a setter to the useEffect or return the id.
+        // For simplicity, let's assume the useEffect handles the watch lifecycle.
+        // If we need to clear it, we'd need the ID.
+        // Re-introducing watchPosition here to manage watchId directly.
         const id = navigator.geolocation.watchPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
                 setLocation({ lat: latitude, lng: longitude });
-
-                socket.emit('update_location', {
-                    driverId: 'bus-01', // Mock driver ID
-                    lat: latitude,
-                    lng: longitude
-                });
             },
             (err) => {
                 console.error(err);
@@ -84,67 +100,65 @@ const DriverDashboard = () => {
     };
 
     return (
-        <div className="h-[100dvh] bg-gray-50 flex flex-col items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md h-full max-h-[90dvh] flex flex-col overflow-hidden">
+        <div className="h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col items-center justify-center p-6">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-white/50">
                 {/* Header */}
-                <div className="bg-blue-900 p-6 text-white flex justify-between items-center flex-shrink-0">
+                <div className="bg-blue-600 p-6 text-white flex justify-between items-center shadow-md">
                     <div>
-                        <h2 className="text-2xl font-bold">Driver Portal</h2>
-                        <p className="text-blue-200 text-sm">Shuttle ID: BUS-01</p>
+                        <h2 className="text-xl font-bold opacity-90">Driver Portal</h2>
+                        <p className="text-blue-100 text-2xl font-black tracking-tight">{myBusId}</p>
                     </div>
-                    <Bus className="w-10 h-10 text-white opacity-80" />
+                    <div className="bg-white/20 p-2 rounded-xl">
+                        <Bus className="w-8 h-8 text-white" />
+                    </div>
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-6">
+                <div className="p-8 flex flex-col space-y-8">
                     {/* Status Indicator */}
-                    <div className="flex flex-col items-center flex-none">
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-all duration-500 ${status === 'ONLINE' ? 'bg-green-100 text-green-600 ring-4 ring-green-50' :
-                                status === 'OUT_OF_BOUNDS' ? 'bg-red-100 text-red-600 ring-4 ring-red-50' :
-                                    'bg-gray-100 text-gray-400'
-                            }`}>
-                            {status === 'ONLINE' ? <MapPin className="w-12 h-12 animate-bounce" /> :
-                                status === 'OUT_OF_BOUNDS' ? <AlertTriangle className="w-12 h-12" /> :
-                                    <Power className="w-12 h-12" />}
-                        </div>
-                        <h3 className={`text-xl font-bold tracking-wider ${status === 'ONLINE' ? 'text-green-600' :
-                                status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
-                                    'text-gray-500'
-                            }`}>
-                            {status === 'OUT_OF_BOUNDS' ? 'OUT OF ZONE' : status}
-                        </h3>
-                        {status === 'ONLINE' && <p className="text-gray-400 font-mono mt-1">{elapsed}</p>}
+                    <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-4 transition-all duration-700 ${status === 'ONLINE' ? 'bg-green-50 text-green-500 ring-8 ring-green-50/50 shadow-green-200 shadow-lg' :
+                        status === 'OUT_OF_BOUNDS' ? 'bg-red-50 text-red-500 ring-8 ring-red-50/50' :
+                            'bg-gray-50 text-gray-300 ring-8 ring-gray-100'
+                        }`}>
+                        {status === 'ONLINE' ? <MapPin className="w-14 h-14 animate-bounce" /> :
+                            status === 'OUT_OF_BOUNDS' ? <AlertTriangle className="w-14 h-14" /> :
+                                <Power className="w-14 h-14" />}
                     </div>
-
-                    {/* Error Box */}
-                    {errorMsg && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r flex-none">
-                            <p className="text-sm text-red-700 font-semibold">{errorMsg}</p>
-                        </div>
-                    )}
-
-                    {/* Main Action Button - Flex Grow to be huge */}
-                    <button
-                        onClick={isSharing ? stopSharing : startSharing}
-                        className={`w-full flex-1 min-h-[120px] rounded-xl font-bold text-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3 ${isSharing
-                                ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl'
-                            }`}
-                    >
-                        {isSharing ? 'STOP SHARING' : 'START NOW'}
-                    </button>
-
-                    {/* Debug Info */}
-                    <div className="text-center flex-none pt-2">
-                        <p className="font-mono text-gray-400 text-xs">
-                            {location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : '--.-----, --.-----'}
-                        </p>
-                        <p className="text-[10px] text-gray-300 mt-1">
-                            Last Sent: {location ? new Date().toLocaleTimeString() : 'Waiting...'}
-                        </p>
-                    </div>
+                    <h3 className={`text-2xl font-bold tracking-widest uppercase transition-colors ${status === 'ONLINE' ? 'text-green-600' :
+                        status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
+                            'text-gray-400'
+                        }`}>
+                        {status === 'OUT_OF_BOUNDS' ? 'OUT OF ZONE' : status}
+                    </h3>
+                    <p className="text-sm font-medium text-gray-400 mt-2 h-6">
+                        {status === 'ONLINE' ? `Live for: ${elapsed}` : 'Ready to start'}
+                    </p>
                 </div>
+
+                {/* Error Box */}
+                {errorMsg && (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r animate-pulse">
+                        <p className="text-sm text-red-700 font-bold">{errorMsg}</p>
+                    </div>
+                )}
+
+                {/* Main Action Button - Smaller & Cleaner */}
+                <button
+                    onClick={isSharing ? stopSharing : startSharing}
+                    className={`w-full py-4 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
+                        ? 'bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+                        }`}
+                >
+                    {isSharing ? 'STOP SHARING' : 'START SHARING'}
+                </button>
+
+                {/* Footer Info */}
+                <p className="text-center text-xs text-gray-300 mt-4">
+                    VIT Shuttle System v1.0
+                </p>
             </div>
         </div>
+
     );
 };
 

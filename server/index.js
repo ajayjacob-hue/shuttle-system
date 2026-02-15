@@ -21,26 +21,46 @@ const VIT_VELLORE_CENTER = point([79.1559, 12.9692]); // [lng, lat] for turf
 const GEOFENCE_RADIUS_KM = 2.5;
 
 // State
-let activeDrivers = new Map(); // socketId -> { driverId, coords, lastUpdate }
+const activeDrivers = new Map(); // Stores socket.id -> { driverId, lat, lng, lastUpdate }
+let loadingBusCount = 1;
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // Client joins as 'driver' or 'student'
   socket.on('join_role', (role) => {
-    socket.join(role);
-    console.log(`Socket ${socket.id} joined as ${role}`);
+    if (role === 'driver') {
+      const driverId = `Bus ${loadingBusCount++}`;
+      // Store driver with initial null location
+      activeDrivers.set(socket.id, { driverId, lat: null, lng: null, lastUpdate: null });
+      socket.join('driver');
+      console.log(`Driver registered: ${driverId} (${socket.id})`);
 
-    // If student joins, send them current active drivers
-    if (role === 'student') {
-      const drivers = Array.from(activeDrivers.values());
-      socket.emit('initial_drivers', drivers);
+      // Tell the driver their ID
+      socket.emit('login_success', { driverId });
+    } else if (role === 'student') {
+      socket.join('student');
+      console.log(`Socket ${socket.id} joined as ${role}`);
+      // Send existing drivers to new student
+      const driversList = {};
+      activeDrivers.forEach((val, key) => {
+        if (val.lat !== null && val.lng !== null) { // Only send drivers with active locations
+          driversList[key] = {
+            socketId: key,
+            driverId: val.driverId,
+            lat: val.lat,
+            lng: val.lng,
+            lastUpdate: val.lastUpdate
+          };
+        }
+      });
+      socket.emit('initial_drivers', Object.values(driversList));
     }
   });
 
   // Driver updates location
   socket.on('update_location', (data) => {
-    // data: { lat, lng, driverId }
+    // data: { lat, lng } (driverId is now managed internally)
     // Validation
     if (!data || !data.lat || !data.lng) return;
 
