@@ -87,7 +87,31 @@ const DriverDashboard = () => {
                 videoRef.current.play().catch(e => console.log("Video autoplay blocked:", e));
             }
 
-            // 3. SOCKET HEARTBEAT (Prevents connection closing)
+            // 3. AUDIO CONTEXT HACK (Oscillator)
+            // Creates a silent audio context to force the browser to keep the audio thread (and thus the JS thread) alive.
+            let audioCtx = null;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = 60; // Low frequency
+                    gainNode.gain.value = 0.001; // Almost silent, but technically "playing"
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+
+                    oscillator.start();
+                    console.log("Audio Context Started");
+                }
+            } catch (e) {
+                console.error("Audio Context failed:", e);
+            }
+
+            // 4. SOCKET HEARTBEAT (Prevents connection closing)
             // Send a 'ping' every 2 seconds to keep the socket active
             heartbeatInterval = setInterval(() => {
                 if (socket?.connected) {
@@ -108,6 +132,9 @@ const DriverDashboard = () => {
                 if (videoRef.current) {
                     videoRef.current.pause();
                     videoRef.current.currentTime = 0;
+                }
+                if (audioCtx) {
+                    audioCtx.close().catch(e => console.log("Error closing AudioContext", e));
                 }
                 clearInterval(heartbeatInterval);
             };
@@ -264,7 +291,7 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v1.5 (Lite)
+                VIT Shuttle System v1.6 (Ultimate)
             </p>
 
             {/* Hidden Video for Background Keep-Alive - Base64 Safe Version */}
