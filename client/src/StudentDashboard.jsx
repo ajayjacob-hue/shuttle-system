@@ -70,6 +70,22 @@ const StudentDashboard = () => {
         };
     }, [socket, selectedBus]);
 
+    // User Location State
+    const [userLoc, setUserLoc] = useState(null);
+
+    // Get User Location on Mount
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                },
+                (err) => console.error("Location access denied", err),
+                { enableHighAccuracy: true }
+            );
+        }
+    }, []);
+
     const activeBuses = Object.values(drivers);
 
     return (
@@ -77,17 +93,38 @@ const StudentDashboard = () => {
 
             {/* 1. MAP CONTAINER (Order 1 on Mobile, Order 2 on Desktop) */}
             <div className="flex-1 relative order-1 md:order-2 h-full w-full z-0">
-                <MapContainer center={VIT_VELLORE} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false} attributionControl={false}>
+                <MapContainer center={VIT_VELLORE} zoom={17} style={{ height: "100%", width: "100%", zIndex: 0 }} zoomControl={false} attributionControl={false}>
+                    {/* Detailed OSM Tiles */}
                     <TileLayer
-                        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
+
+                    {/* User Location Marker */}
+                    {userLoc && (
+                        <>
+                            <Marker position={[userLoc.lat, userLoc.lng]} icon={L.divIcon({
+                                className: 'user-location-marker',
+                                html: `<div style="background-color: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
+                                iconSize: [20, 20]
+                            })}>
+                                <Popup>You are here</Popup>
+                            </Marker>
+                            {/* Auto-center on user only initially or if tracking is enabled (here just once via generic Recenter if needed, but better handling separately) */}
+                            {!selectedBus && <MapRecenter center={[userLoc.lat, userLoc.lng]} zoom={16} />}
+                        </>
+                    )}
 
                     {activeBuses.map((driver) => (
                         <Marker
                             key={driver.socketId}
                             position={[driver.lat, driver.lng]}
                             icon={createBusIcon()}
+                            eventHandlers={{
+                                click: () => {
+                                    setSelectedBus(driver.socketId);
+                                },
+                            }}
                         >
                             <Popup direction="top" offset={[0, -20]} opacity={1}>
                                 <div className="font-sans text-center">
@@ -98,9 +135,9 @@ const StudentDashboard = () => {
                         </Marker>
                     ))}
 
-                    {/* Fly to selected bus */}
+                    {/* Fly to selected bus - Overrides user location center if a bus is selected */}
                     {selectedBus && drivers[selectedBus] && (
-                        <MapRecenter center={[drivers[selectedBus].lat, drivers[selectedBus].lng]} />
+                        <MapRecenter center={[drivers[selectedBus].lat, drivers[selectedBus].lng]} zoom={18} />
                     )}
                 </MapContainer>
             </div>
