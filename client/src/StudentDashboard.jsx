@@ -77,7 +77,7 @@ const StudentDashboard = () => {
 
             {/* 1. MAP CONTAINER (Order 1 on Mobile, Order 2 on Desktop) */}
             <div className="flex-1 relative order-1 md:order-2 h-full w-full z-0">
-                <MapContainer center={VIT_VELLORE} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+                <MapContainer center={VIT_VELLORE} zoom={15} style={{ height: "100%", width: "100%" }} zoomControl={false} attributionControl={false}>
                     <TileLayer
                         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
