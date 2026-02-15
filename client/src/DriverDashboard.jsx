@@ -142,16 +142,16 @@ const DriverDashboard = () => {
                     <div className="flex flex-col items-center justify-center py-4">
                         {/* ... existing status UI ... */}
                         <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-4 transition-all duration-700 ${status === 'ONLINE' ? 'bg-green-50 text-green-500 ring-8 ring-green-50/50 shadow-green-200 shadow-lg' :
-                                status === 'OUT_OF_BOUNDS' ? 'bg-red-50 text-red-500 ring-8 ring-red-50/50' :
-                                    'bg-gray-50 text-gray-300 ring-8 ring-gray-100'
+                            status === 'OUT_OF_BOUNDS' ? 'bg-red-50 text-red-500 ring-8 ring-red-50/50' :
+                                'bg-gray-50 text-gray-300 ring-8 ring-gray-100'
                             }`}>
                             {status === 'ONLINE' ? <MapPin className="w-14 h-14 animate-bounce" /> :
                                 status === 'OUT_OF_BOUNDS' ? <AlertTriangle className="w-14 h-14" /> :
                                     <Power className="w-14 h-14" />}
                         </div>
                         <h3 className={`text-2xl font-bold tracking-widest uppercase transition-colors ${status === 'ONLINE' ? 'text-green-600' :
-                                status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
-                                    'text-gray-400'
+                            status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
+                                'text-gray-400'
                             }`}>
                             {status === 'OUT OF ZONE' ? 'OUT OF ZONE' : status}
                         </h3>
@@ -171,8 +171,8 @@ const DriverDashboard = () => {
                     <button
                         onClick={isSharing ? stopSharing : startSharing}
                         className={`w-full py-4 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
-                                ? 'bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+                            ? 'bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
                             }`}
                     >
                         {isSharing ? 'STOP SHARING' : 'START SHARING'}
@@ -187,13 +187,14 @@ const DriverDashboard = () => {
                 </div>
             </div>
             {/* Footer Info */}
+            {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v1.2
+                VIT Shuttle System v1.3
             </p>
         </div>
+        </div >
 
     );
 };
 
 export default DriverDashboard;
-```
