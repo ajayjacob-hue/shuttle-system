@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { MapPin, AlertTriangle, Power, Bus } from 'lucide-react';
 
@@ -62,7 +62,8 @@ const DriverDashboard = () => {
 
     // BACKGROUND ALIVE HACK (Video + Heartbeat)
     // Audio alone often fails. Video is treated with higher priority by browsers.
-    const videoRef = React.useRef(null);
+    const videoRef = useRef(null);
+    const [wakeLock, setWakeLock] = useState(null);
 
     useEffect(() => {
         let heartbeatInterval;
@@ -143,16 +144,6 @@ const DriverDashboard = () => {
         setElapsed('00:00');
         setSentCount(0);
 
-        // Start watching logic is handled by useEffect in original code or re-added here?
-        // In previous steps I relied on a separate useEffect for watchPosition or assumed it was there.
-        // Let's ensure watchPosition is active.
-        // Actually, looking at the full file view from previous steps, there was a watchPosition inside startSharing but I might have removed it or it's in a useEffect.
-        // Let's stick to the pattern:
-        // 1. Join role 'driver'
-        // 2. Select ID
-        // 3. Start Sharing -> triggers isSharing=true -> triggers useEffect that emits data
-
-        // We need to ensure we track location if not already tracking.
         if (!watchId) {
             const id = navigator.geolocation.watchPosition(
                 (pos) => {
@@ -214,7 +205,6 @@ const DriverDashboard = () => {
                 <div className="p-8 flex flex-col space-y-8">
                     {/* Status Indicator */}
                     <div className="flex flex-col items-center justify-center py-4">
-                        {/* ... existing status UI ... */}
                         <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-4 transition-all duration-700 ${status === 'ONLINE' ? 'bg-green-50 text-green-500 ring-8 ring-green-50/50 shadow-green-200 shadow-lg' :
                             status === 'OUT_OF_BOUNDS' ? 'bg-red-50 text-red-500 ring-8 ring-red-50/50' :
                                 'bg-gray-50 text-gray-300 ring-8 ring-gray-100'
@@ -274,17 +264,17 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v1.5 (Background+)
+                VIT Shuttle System v1.5 (Lite)
             </p>
 
-            {/* Hidden Video for Background Keep-Alive */}
+            {/* Hidden Video for Background Keep-Alive - Base64 Safe Version */}
             <video
                 ref={videoRef}
                 playsInline
                 muted
                 loop
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
-                src="https://raw.githubusercontent.com/richtr/NoSleep.js/master/src/1204052309.mp4"
+                src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAz5tb292AAAAbG12aGQAAAAA629nAAAAAADrb2cAAAH0AAAAEAAAAAAABAAAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACHBhc3AAAAABAAAAAQAAAAEAAAABAAAAAQAAAF91ZHRhAAAAW21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAAYXQ3NwAAACBlbHN0AAAAAAAAAAEAAAH0AAAAAAABAAAAAQAAAAABTG1kYXQAAAAAAAAAIxe4wA33/w=="
             />
         </div>
     );
