@@ -161,6 +161,9 @@ const StudentDashboard = () => {
                         <p className={`text-[10px] uppercase font-bold mt-1 ${socket?.connected ? 'text-green-600 md:text-green-300' : 'text-red-500 animate-pulse'}`}>
                             {socket?.connected ? '● Server Connected' : '○ Connecting...'}
                         </p>
+                        <p className="text-[9px] text-gray-400 mt-1 opacity-70 truncate max-w-[150px]">
+                            {socket?.io?.uri || 'No URL'}
+                        </p>
                     </div>
                     <div className="text-[10px] bg-green-100 text-green-700 md:bg-blue-800 md:text-blue-100 px-2 py-1 rounded-full">
                         {activeBuses.length} Active
