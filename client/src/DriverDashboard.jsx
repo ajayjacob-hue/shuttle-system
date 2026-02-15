@@ -60,38 +60,78 @@ const DriverDashboard = () => {
         }
     }, [isSharing, socket, location, myBusId]);
 
-    // WAKE LOCK & BACKGROUND AUDIO HACK
-    // Keeps the browser active when switching apps (e.g. for payments)
-    const [wakeLock, setWakeLock] = useState(null);
+    // BACKGROUND ALIVE HACK (Video + Heartbeat)
+    // Audio alone often fails. Video is treated with higher priority by browsers.
+    const videoRef = React.useRef(null);
+
     useEffect(() => {
+        let heartbeatInterval;
+
         if (isSharing) {
-            // 1. Request Screen Wake Lock
+            // 1. WAKE LOCK (Screen)
             const requestWakeLock = async () => {
                 if ('wakeLock' in navigator) {
                     try {
                         const lock = await navigator.wakeLock.request('screen');
                         setWakeLock(lock);
-                        console.log('Wake Lock active');
                     } catch (err) {
-                        console.error(`Wake Lock failed: ${err.name}, ${err.message}`);
+                        console.error("WakeLock failed:", err);
                     }
                 }
             };
             requestWakeLock();
 
-            // 2. Play silent audio loop to keep background thread alive
-            // (Browser throttles JS in background unless media is playing)
-            const audio = new Audio('https://github.com/anars/blank-audio/raw/master/10-seconds-of-silence.mp3');
-            audio.loop = true;
-            audio.play().catch(e => console.log("Audio play failed (interaction needed):", e));
+            // 2. VIDEO HACK (Prevents Tab Freezing)
+            if (videoRef.current) {
+                videoRef.current.play().catch(e => console.log("Video autoplay blocked:", e));
+            }
+
+            // 3. SOCKET HEARTBEAT (Prevents connection closing)
+            // Send a 'ping' every 2 seconds to keep the socket active
+            heartbeatInterval = setInterval(() => {
+                if (socket?.connected) {
+                    socket.emit('ping_keepalive');
+                    // Use existing location if available to force traffic
+                    if (location) {
+                        socket.emit('update_location', {
+                            driverId: myBusId,
+                            lat: location.lat,
+                            lng: location.lng
+                        });
+                    }
+                }
+            }, 3000);
 
             return () => {
                 if (wakeLock) wakeLock.release();
-                audio.pause();
-                audio.src = "";
+                if (videoRef.current) {
+                    videoRef.current.pause();
+                    videoRef.current.currentTime = 0;
+                }
+                clearInterval(heartbeatInterval);
             };
         }
-    }, [isSharing]);
+    }, [isSharing, socket, myBusId, location]);
+
+    // RECONNECTION & VISIBILITY RECOVERY
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log("App woke up!");
+                if (socket && !socket.connected) {
+                    console.log("Socket disconnected, trying to reconnect...");
+                    socket.connect();
+                }
+                // Force immediate update to sync state
+                if (isSharing && location) {
+                    socket.emit('update_location', { driverId: myBusId, lat: location.lat, lng: location.lng });
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [socket, isSharing, location, myBusId]);
 
 
     const startSharing = () => {
@@ -205,8 +245,8 @@ const DriverDashboard = () => {
                     <button
                         onClick={isSharing ? stopSharing : startSharing}
                         className={`w-full py-6 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
-                                ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
-                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl shadow-blue-200'
+                            ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl shadow-blue-200'
                             }`}
                     >
                         {isSharing ? (
@@ -234,8 +274,18 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v1.3
+                VIT Shuttle System v1.5 (Background+)
             </p>
+
+            {/* Hidden Video for Background Keep-Alive */}
+            <video
+                ref={videoRef}
+                playsInline
+                muted
+                loop
+                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
+                src="https://raw.githubusercontent.com/richtr/NoSleep.js/master/src/1204052309.mp4"
+            />
         </div>
     );
 };
