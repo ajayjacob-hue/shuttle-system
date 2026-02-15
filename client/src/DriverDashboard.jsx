@@ -60,6 +60,39 @@ const DriverDashboard = () => {
         }
     }, [isSharing, socket, location, myBusId]);
 
+    // WAKE LOCK & BACKGROUND AUDIO HACK
+    // Keeps the browser active when switching apps (e.g. for payments)
+    const [wakeLock, setWakeLock] = useState(null);
+    useEffect(() => {
+        if (isSharing) {
+            // 1. Request Screen Wake Lock
+            const requestWakeLock = async () => {
+                if ('wakeLock' in navigator) {
+                    try {
+                        const lock = await navigator.wakeLock.request('screen');
+                        setWakeLock(lock);
+                        console.log('Wake Lock active');
+                    } catch (err) {
+                        console.error(`Wake Lock failed: ${err.name}, ${err.message}`);
+                    }
+                }
+            };
+            requestWakeLock();
+
+            // 2. Play silent audio loop to keep background thread alive
+            // (Browser throttles JS in background unless media is playing)
+            const audio = new Audio('https://github.com/anars/blank-audio/raw/master/10-seconds-of-silence.mp3');
+            audio.loop = true;
+            audio.play().catch(e => console.log("Audio play failed (interaction needed):", e));
+
+            return () => {
+                if (wakeLock) wakeLock.release();
+                audio.pause();
+                audio.src = "";
+            };
+        }
+    }, [isSharing]);
+
 
     const startSharing = () => {
         if (!socket) return;
@@ -171,19 +204,31 @@ const DriverDashboard = () => {
                     {/* Main Action Button */}
                     <button
                         onClick={isSharing ? stopSharing : startSharing}
-                        className={`w-full py-4 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
-                            ? 'bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+                        className={`w-full py-6 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
+                                ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl shadow-blue-200'
                             }`}
                     >
-                        {isSharing ? 'STOP SHARING' : 'START SHARING'}
+                        {isSharing ? (
+                            <>
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                                STOP SHARING
+                            </>
+                        ) : 'START SHARING'}
                     </button>
 
                     {/* Debug Info Overlay */}
-                    <div className="bg-black/80 text-green-400 p-4 font-mono text-xs w-full overflow-hidden rounded-lg mt-4">
-                        <p>STATUS : {socket?.connected ? 'CONNECTED' : 'DISCONNECTED'}</p>
-                        <p>GPS    : {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'Signal Lost / Waiting...'}</p>
-                        <p>SENT   : {sentCount} packets</p>
+                    <div className="bg-black/90 text-green-400 p-4 font-mono text-[10px] w-full overflow-hidden rounded-xl border border-green-900/50 shadow-inner">
+                        <div className="grid grid-cols-2 gap-2">
+                            <p>STATUS: {socket?.connected ? <span className="text-green-400">CONN</span> : <span className="text-red-500">DISC</span>}</p>
+                            <p>MODE: {wakeLock ? '⚡ AWAKE' : '💤 NORMAL'}</p>
+                            <p className="col-span-2 truncate">GPS: {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'WAITING...'}</p>
+                            <p>SENT: {sentCount}</p>
+                            <p>ID: {myBusId}</p>
+                        </div>
                     </div>
                 </div>
             </div>
