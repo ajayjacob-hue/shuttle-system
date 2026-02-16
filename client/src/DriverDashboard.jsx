@@ -339,7 +339,7 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v2.2 (Decoupled Worker)
+                VIT Shuttle System v2.3 (Unique ID)
             </p>
 
             {/* Hidden Video element for audio/media playback keep-alive */}
