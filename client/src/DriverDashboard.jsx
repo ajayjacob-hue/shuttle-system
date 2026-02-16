@@ -11,6 +11,7 @@ const DriverDashboard = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [startTime, setStartTime] = useState(null);
     const [lastSentTime, setLastSentTime] = useState(null);
+    const workerRef = useRef(null);
 
     // Persist Bus Selection
     const [myBusId, setMyBusId] = useState(localStorage.getItem('shuttle_driver_id') || 'Bus 1');
@@ -21,7 +22,50 @@ const DriverDashboard = () => {
 
     const BUS_OPTIONS = ['Bus 1', 'Bus 2', 'Bus 3', 'Bus 4', 'Bus 5', 'Bus 6', 'Bus 7', 'Bus 8', 'Bus 9', 'Bus 10'];
 
-    // Timer effect
+    // Initialize Web Worker
+    useEffect(() => {
+        // Cache bust with timestamp or version
+        workerRef.current = new Worker('/locationWorker.js?v=' + Date.now());
+
+        workerRef.current.onmessage = (e) => {
+            if (e.data === 'tick') {
+                // WORKER TICK: This runs even in background (mostly)
+                // 1. Force a socket ping
+                if (socket?.connected) {
+                    socket.emit('ping_keepalive');
+                }
+
+                // 2. Try to get a fresh position manually (wake up GPS)
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        handleLocationUpdate(pos.coords);
+                    },
+                    (err) => {
+                        // If GPS fails, at least re-emit the LAST known location so we don't disappear
+                        // Check if we have a valid last location and it's not too old
+                        // (For now, just let the student side handle stale data if no updates come)
+                        console.log("Worker Tick GPS Poll failed, keeping alive...");
+                    },
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 2000 }
+                );
+            }
+        };
+
+        return () => {
+            workerRef.current.terminate();
+        };
+    }, [socket, myBusId]); // Note: handleLocationUpdate needs to be stable or ref-based if used here, 
+    // but since we define it inside, we might have closure issues. 
+    // Better to use a ref for the latest location or move logic.
+
+    // Ref to hold latest location for the worker closure
+    const locationRef = useRef(null);
+    useEffect(() => {
+        locationRef.current = location;
+    }, [location]);
+
+
+    // Timer effect for UI display
     const [elapsed, setElapsed] = useState('00:00');
     useEffect(() => {
         let interval;
@@ -50,12 +94,12 @@ const DriverDashboard = () => {
 
         // Re-emit last location on reconnect
         socket.on('connect', () => {
-            if (isSharing && location) {
+            if (isSharing && locationRef.current) {
                 socket.emit('join_role', 'driver');
                 socket.emit('update_location', {
                     driverId: myBusId,
-                    lat: location.lat,
-                    lng: location.lng
+                    lat: locationRef.current.lat,
+                    lng: locationRef.current.lng
                 });
             }
         });
@@ -63,29 +107,26 @@ const DriverDashboard = () => {
         return () => {
             socket.off('force_stop_sharing');
             socket.off('connect');
-            // Don't stop sharing on unmount automatically to survive refreshes if we want, 
-            // but for now, cleanup is safer.
-            // stopSharing(); 
         };
-    }, [socket, isSharing, location, myBusId]);
+    }, [socket, isSharing, myBusId]);
 
     const [sentCount, setSentCount] = useState(0);
 
-    // BACKGROUND ALIVE HACK (Video + Heartbeat)
+    // BACKGROUND ALIVE HACK (Video + WakeLock)
     const videoRef = useRef(null);
     const [wakeLock, setWakeLock] = useState(null);
 
     useEffect(() => {
-        let heartbeatInterval;
-
         if (isSharing) {
+            // Start Worker Loop
+            workerRef.current.postMessage('start');
+
             // 1. WAKE LOCK (Screen)
             const requestWakeLock = async () => {
                 if ('wakeLock' in navigator) {
                     try {
                         const lock = await navigator.wakeLock.request('screen');
                         setWakeLock(lock);
-                        console.log("Wake Lock active");
                     } catch (err) {
                         console.error("WakeLock failed:", err);
                     }
@@ -93,7 +134,6 @@ const DriverDashboard = () => {
             };
             requestWakeLock();
 
-            // Re-acquire wake lock if visibility changes
             const handleVisChange = async () => {
                 if (document.visibilityState === 'visible' && isSharing) {
                     await requestWakeLock();
@@ -101,32 +141,19 @@ const DriverDashboard = () => {
             };
             document.addEventListener('visibilitychange', handleVisChange);
 
-
-            // 2. VIDEO HACK (Prevents Tab Freezing)
+            // 2. VIDEO HACK 
             if (videoRef.current) {
                 videoRef.current.play().catch(e => console.log("Video autoplay blocked:", e));
             }
 
-            // 3. SOCKET HEARTBEAT (Prevents connection closing & keeps alive)
-            // Send a 'ping' every 10 seconds to keep the socket active
-            heartbeatInterval = setInterval(() => {
-                if (socket?.connected) {
-                    // Send a dummy update if real GPS hasn't fired in a while
-                    // This keeps the socket "hot"
-                    socket.emit('ping_keepalive');
-                }
-            }, 10000);
-
             return () => {
                 if (wakeLock) wakeLock.release();
-                if (videoRef.current) {
-                    videoRef.current.pause();
-                }
-                clearInterval(heartbeatInterval);
+                if (videoRef.current) videoRef.current.pause();
                 document.removeEventListener('visibilitychange', handleVisChange);
+                workerRef.current.postMessage('stop');
             };
         }
-    }, [isSharing, socket]);
+    }, [isSharing]);
 
     const startSharing = () => {
         if (!socket) return;
@@ -139,7 +166,6 @@ const DriverDashboard = () => {
 
         if (!watchId) {
             // PRIMARY: Watch Position
-            // IMPORTANT: 'enableHighAccuracy: true' is CRITICAL for persistent background tracking on many devices
             const id = navigator.geolocation.watchPosition(
                 (pos) => {
                     handleLocationUpdate(pos.coords);
@@ -151,7 +177,7 @@ const DriverDashboard = () => {
                 {
                     enableHighAccuracy: true,
                     maximumAge: 0,
-                    timeout: 10000
+                    timeout: 5000
                 }
             );
             setWatchId(id);
@@ -162,10 +188,12 @@ const DriverDashboard = () => {
     const handleLocationUpdate = ({ latitude, longitude }) => {
         const newLocation = { lat: latitude, lng: longitude };
         setLocation(newLocation);
+        locationRef.current = newLocation; // Keep ref sync for worker
+
         setLastSentTime(new Date().toLocaleTimeString());
 
         if (socket && socket.connected) {
-            // DIRECT EMIT: Don't rely on React state effects which might throttle
+            // DIRECT EMIT
             socket.emit('update_location', {
                 driverId: myBusId,
                 lat: latitude,
@@ -282,7 +310,7 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v2.0 (Persistent)
+                VIT Shuttle System v2.1 (Worker)
             </p>
 
             {/* Hidden Video for Background Keep-Alive - Base64 Safe Version */}
