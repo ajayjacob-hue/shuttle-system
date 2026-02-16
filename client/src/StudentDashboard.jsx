@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useSocket } from './SocketContext';
-import { Bus, Navigation } from 'lucide-react';
+import { Bus, Navigation, Crosshair, MapPin } from 'lucide-react';
 
 const VIT_VELLORE = [12.9692, 79.1559];
 
@@ -23,16 +23,17 @@ const createBusIcon = () => L.divIcon({
     popupAnchor: [0, -20]
 });
 
-// Component to recenter map (Modified to respect user zoom)
-const MapRecenter = ({ center }) => {
+// Component to handle map movements programmatically
+const MapController = ({ centerOn, zoom }) => {
     const map = useMap();
+
     useEffect(() => {
-        if (center) {
-            // Keep current zoom level, only pan
-            const currentZoom = map.getZoom();
-            map.setView(center, currentZoom);
+        if (centerOn) {
+            // Fly to the new location smoothly
+            map.flyTo(centerOn, zoom || map.getZoom());
         }
-    }, [center, map]);
+    }, [centerOn, map, zoom]); // Only trigger when centerOn explicitly changes
+
     return null;
 };
 
@@ -41,6 +42,8 @@ const StudentDashboard = () => {
     const [drivers, setDrivers] = useState({});
     const [selectedBus, setSelectedBus] = useState(null);
     const [now, setNow] = useState(Date.now());
+    const [mapCenterTarget, setMapCenterTarget] = useState(null); // { pos: [lat, lng], zoom: 18, trigger: timestamp }
+    const [userLoc, setUserLoc] = useState(null);
 
     // Update 'now' every second to force UI refresh for "seconds ago" timer
     useEffect(() => {
@@ -53,7 +56,6 @@ const StudentDashboard = () => {
         socket.emit('join_role', 'student');
 
         const handleMove = (data) => {
-            // Stamp with client-side receipt time
             setDrivers(prev => ({
                 ...prev,
                 [data.socketId]: { ...data, lastUpdated: Date.now() }
@@ -70,7 +72,6 @@ const StudentDashboard = () => {
         };
 
         socket.on('initial_drivers', (driversMap) => {
-            // Add initial timestamp to existing drivers
             const stamped = {};
             Object.keys(driversMap).forEach(key => {
                 stamped[key] = { ...driversMap[key], lastUpdated: Date.now() };
@@ -88,15 +89,15 @@ const StudentDashboard = () => {
         };
     }, [socket, selectedBus]);
 
-    // User Location State
-    const [userLoc, setUserLoc] = useState(null);
-
     // Get User Location on Mount
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                    setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setUserLoc(loc);
+                    // Initial center on user
+                    setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
                 },
                 (err) => console.error("Location access denied", err),
                 { enableHighAccuracy: true }
@@ -106,32 +107,66 @@ const StudentDashboard = () => {
 
     const activeBuses = Object.values(drivers);
 
+    const handleFocusShuttle = (driver) => {
+        setSelectedBus(driver.socketId);
+        setMapCenterTarget({
+            pos: [driver.lat, driver.lng],
+            zoom: 18,
+            trigger: Date.now()
+        });
+    };
+
+    const handleFocusUser = () => {
+        if (userLoc) {
+            setSelectedBus(null); // Deselect bus when focusing on self
+            setMapCenterTarget({
+                pos: [userLoc.lat, userLoc.lng],
+                zoom: 17,
+                trigger: Date.now()
+            });
+        } else {
+            alert("Waiting for your location...");
+        }
+    };
+
     return (
         <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 overflow-hidden relative">
 
-            {/* 1. MAP CONTAINER (Order 1 on Mobile, Order 2 on Desktop) */}
+            {/* 1. MAP CONTAINER */}
             <div className="flex-1 relative order-1 md:order-2 h-full w-full z-0">
                 <MapContainer center={VIT_VELLORE} zoom={17} style={{ height: "100%", width: "100%", zIndex: 0 }} zoomControl={false} attributionControl={false}>
-                    {/* Detailed OSM Tiles */}
                     <TileLayer
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
 
+                    {/* Controls Overlay */}
+                    <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-2">
+                        {/* Recenter on User */}
+                        <button
+                            onClick={handleFocusUser}
+                            className="bg-white p-3 rounded-full shadow-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                            title="Center on Me"
+                        >
+                            <Crosshair size={24} />
+                        </button>
+                    </div>
+
+                    {/* Programmatic Map Controller */}
+                    {mapCenterTarget && (
+                        <MapController centerOn={mapCenterTarget.pos} zoom={mapCenterTarget.zoom} trigger={mapCenterTarget.trigger} />
+                    )}
+
                     {/* User Location Marker */}
                     {userLoc && (
-                        <>
-                            <Marker position={[userLoc.lat, userLoc.lng]} icon={L.divIcon({
-                                className: 'user-location-marker',
-                                html: `<div style="background-color: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
-                                iconSize: [20, 20],
-                                iconAnchor: [10, 10]
-                            })}>
-                                <Popup>You are here</Popup>
-                            </Marker>
-                            {/* Auto-center on user only initially or if tracking is enabled (here just once via generic Recenter if needed, but better handling separately) */}
-                            {!selectedBus && <MapRecenter center={[userLoc.lat, userLoc.lng]} zoom={16} />}
-                        </>
+                        <Marker position={[userLoc.lat, userLoc.lng]} icon={L.divIcon({
+                            className: 'user-location-marker',
+                            html: `<div style="background-color: #2563eb; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })}>
+                            <Popup>You are here</Popup>
+                        </Marker>
                     )}
 
                     {activeBuses.map((driver) => (
@@ -140,28 +175,26 @@ const StudentDashboard = () => {
                             position={[driver.lat, driver.lng]}
                             icon={createBusIcon()}
                             eventHandlers={{
-                                click: () => {
-                                    setSelectedBus(driver.socketId);
-                                },
+                                click: () => handleFocusShuttle(driver),
                             }}
                         >
                             <Popup direction="top" offset={[0, -20]} opacity={1}>
                                 <div className="font-sans text-center">
                                     <strong className="text-blue-900 block mb-1">Shuttle {driver.driverId}</strong>
-                                    <span className="text-xs text-gray-500">Live Location</span>
+                                    <button
+                                        onClick={() => handleFocusShuttle(driver)}
+                                        className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded mt-1 hover:bg-blue-200"
+                                    >
+                                        Focus
+                                    </button>
                                 </div>
                             </Popup>
                         </Marker>
                     ))}
-
-                    {/* Fly to selected bus - Overrides user location center if a bus is selected */}
-                    {selectedBus && drivers[selectedBus] && (
-                        <MapRecenter center={[drivers[selectedBus].lat, drivers[selectedBus].lng]} zoom={18} />
-                    )}
                 </MapContainer>
             </div>
 
-            {/* 2. INFO PANEL / SIDEBAR (Order 2 on Mobile, Order 1 on Desktop) */}
+            {/* 2. INFO PANEL / SIDEBAR */}
             <div
                 className={`
                     bg-white shadow-2xl z-20 flex flex-col transition-all duration-300
@@ -175,12 +208,9 @@ const StudentDashboard = () => {
                         <h1 className="font-bold text-lg flex items-center gap-2 text-gray-800 md:text-white">
                             <Bus size={20} className="text-blue-600 md:text-white" /> VIT Shuttle
                         </h1>
-                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System v1.9</p>
+                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System v2.0</p>
                         <p className={`text-[10px] uppercase font-bold mt-1 ${socket?.connected ? 'text-green-600 md:text-green-300' : 'text-red-500 animate-pulse'}`}>
                             {socket?.connected ? '● Server Connected' : '○ Connecting...'}
-                        </p>
-                        <p className="text-[9px] text-gray-400 mt-1 opacity-70 truncate max-w-[150px]">
-                            {socket?.io?.uri || 'No URL'}
                         </p>
                     </div>
                     <div className="text-[10px] bg-green-100 text-green-700 md:bg-blue-800 md:text-blue-100 px-2 py-1 rounded-full">
@@ -200,7 +230,7 @@ const StudentDashboard = () => {
                         activeBuses.map(bus => (
                             <button
                                 key={bus.socketId}
-                                onClick={() => setSelectedBus(bus.socketId)}
+                                onClick={() => handleFocusShuttle(bus)}
                                 className={`w-full text-left p-4 rounded-xl border transition-all shadow-sm ${selectedBus === bus.socketId
                                     ? 'bg-blue-600 text-white border-blue-600 ring-4 ring-blue-100'
                                     : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-700'
@@ -222,7 +252,7 @@ const StudentDashboard = () => {
                                             return `${Math.floor(diff / 60)}m ago`;
                                         })()}
                                     </span>
-                                    <span>~ 2 mins away</span>
+                                    <span>Click to focus</span>
                                 </div>
                             </button>
                         ))
