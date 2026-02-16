@@ -31,19 +31,15 @@ io.on('connection', (socket) => {
   socket.on('join_role', (role) => {
     if (role === 'driver') {
       // Just join, wait for location update to register ID
-      activeDrivers.set(socket.id, { driverId: 'Pending', lat: null, lng: null, lastUpdate: null });
       socket.join('driver');
       console.log(`Driver joined: ${socket.id}`);
-
-      // Tell the driver their ID - Removed as per instruction
-      // socket.emit('login_success', { driverId });
     } else if (role === 'student') {
       socket.join('student');
       console.log(`Socket ${socket.id} joined as ${role}`);
       // Send existing drivers to new student
       const driversList = {};
       activeDrivers.forEach((val, key) => {
-        if (val.lat !== null && val.lng !== null) { // Only send drivers with active locations
+        if (val.lat !== null && val.lng !== null) {
           driversList[key] = {
             socketId: key,
             driverId: val.driverId,
@@ -59,10 +55,19 @@ io.on('connection', (socket) => {
 
   // Driver updates location
   socket.on('update_location', (data) => {
-    console.log(`Received update from ${data.driverId}: ${data.lat}, ${data.lng}`);
-    // data: { lat, lng } (driverId is now managed internally)
-    // Validation
-    if (!data || !data.lat || !data.lng) return;
+    // data: { driverId, lat, lng }
+    if (!data || !data.lat || !data.lng || !data.driverId) return;
+
+    // DEDUPLICATION: Check if this driverId is already active on ANOTHER socket
+    // If so, remove the old one to prevent ghosts
+    for (const [sId, driver] of activeDrivers.entries()) {
+      if (driver.driverId === data.driverId && sId !== socket.id) {
+        console.log(`Duplicate driver ${data.driverId} detected. Removing old socket ${sId}`);
+        activeDrivers.delete(sId);
+        // Tell students to remove the old ghost immediately
+        io.to('student').emit('driver_offline', { socketId: sId });
+      }
+    }
 
     const driverLocation = point([data.lng, data.lat]);
     const dist = distance(driverLocation, VIT_VELLORE_CENTER, { units: 'kilometers' });
@@ -82,7 +87,7 @@ io.on('connection', (socket) => {
     // Inside Geofence -> Broadcast
     const driverInfo = {
       socketId: socket.id,
-      driverId: data.driverId || 'Unknown Driver',
+      driverId: data.driverId,
       lat: data.lat,
       lng: data.lng,
       lastUpdate: Date.now()

@@ -1,48 +1,68 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { useSocket } from './SocketContext';
-import { Bus, Navigation, Crosshair, MapPin } from 'lucide-react';
+import L from 'leaflet';
+
+import { Bus, Navigation, Crosshair, RefreshCw } from 'lucide-react';
+
+// Fix Leaflet's default icon issue
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const VIT_VELLORE = [12.9692, 79.1559];
 
-// Custom Bus Icon
-const createBusIcon = () => L.divIcon({
+const createBusIcon = () => new L.DivIcon({
     className: 'custom-bus-icon',
     html: `
-        <div class="bus-marker-container">
-            <div class="bus-marker-ring"></div>
-            <div class="bus-marker-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.3-.1-.6-.2-.9l-2-7A2.7 2.7 0 0 0 17 4H7a2.7 2.7 0 0 0-2.8 2.1l-2 7C2 13.6 2 14 2 14.5c0 .4.1.8.2 1.2l.8 2.8H18Z"/><path d="M6 22v-2"/><path d="M18 22v-2"/></svg>
-            </div>
-        </div>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20]
+    <div style="
+      background-color: #2563eb;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    ">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>
+    </div>
+  `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18]
 });
 
-// Component to handle map movements programmatically
-const MapController = ({ centerOn, zoom }) => {
+// Helper component to control map movement programmatically
+const MapController = ({ centerOn, zoom, trigger }) => {
     const map = useMap();
-
     useEffect(() => {
         if (centerOn) {
-            // Fly to the new location smoothly
-            map.flyTo(centerOn, zoom || map.getZoom());
+            map.flyTo(centerOn, zoom, {
+                animate: true,
+                duration: 1.5 // Slower, smoother animation
+            });
         }
-    }, [centerOn, map, zoom]); // Only trigger when centerOn explicitly changes
-
+    }, [centerOn, zoom, trigger, map]);
     return null;
 };
 
 const StudentDashboard = () => {
     const socket = useSocket();
-    const [drivers, setDrivers] = useState({});
-    const [selectedBus, setSelectedBus] = useState(null);
+    const [drivers, setDrivers] = useState({}); // Keyed by DRIVER ID now (e.g. "Bus 1"), NOT socket.id
+    const [selectedBus, setSelectedBus] = useState(null); // This is now a driverId string
     const [now, setNow] = useState(Date.now());
-    const [mapCenterTarget, setMapCenterTarget] = useState(null); // { pos: [lat, lng], zoom: 18, trigger: timestamp }
+    const [mapCenterTarget, setMapCenterTarget] = useState(null);
     const [userLoc, setUserLoc] = useState(null);
 
     // Update 'now' every second to force UI refresh for "seconds ago" timer
@@ -56,27 +76,52 @@ const StudentDashboard = () => {
         socket.emit('join_role', 'student');
 
         const handleMove = (data) => {
+            // data: { socketId, driverId, lat, lng ... }
+            if (!data.driverId) return;
+
             setDrivers(prev => ({
                 ...prev,
-                [data.socketId]: { ...data, lastUpdated: Date.now() }
+                [data.driverId]: {
+                    ...data,
+                    lastUpdated: Date.now()
+                }
             }));
         };
 
         const handleOffline = (data) => {
+            // data: { socketId }
+            // We need to find which driverId had this socketId
             setDrivers(prev => {
                 const updated = { ...prev };
-                delete updated[data.socketId];
+                let removedId = null;
+
+                // Find key where socketId matches
+                Object.keys(updated).forEach(dId => {
+                    if (updated[dId].socketId === data.socketId) {
+                        delete updated[dId];
+                        removedId = dId;
+                    }
+                });
+
+                // If we removed the currently selected bus, deselect it
+                if (removedId && selectedBus === removedId) {
+                    setSelectedBus(null);
+                }
+
                 return updated;
             });
-            if (selectedBus === data.socketId) setSelectedBus(null);
         };
 
         socket.on('initial_drivers', (driversMap) => {
-            const stamped = {};
-            Object.keys(driversMap).forEach(key => {
-                stamped[key] = { ...driversMap[key], lastUpdated: Date.now() };
+            // driversMap is keyed by socketId from server
+            // We need to transform it to be keyed by driverId
+            const transformed = {};
+            Object.values(driversMap).forEach(d => {
+                if (d.driverId) {
+                    transformed[d.driverId] = { ...d, lastUpdated: Date.now() };
+                }
             });
-            setDrivers(prev => ({ ...prev, ...stamped }));
+            setDrivers(prev => ({ ...prev, ...transformed }));
         });
 
         socket.on('shuttle_moved', handleMove);
@@ -108,7 +153,7 @@ const StudentDashboard = () => {
     const activeBuses = Object.values(drivers);
 
     const handleFocusShuttle = (driver) => {
-        setSelectedBus(driver.socketId);
+        setSelectedBus(driver.driverId);
         setMapCenterTarget({
             pos: [driver.lat, driver.lng],
             zoom: 18,
@@ -171,7 +216,7 @@ const StudentDashboard = () => {
 
                     {activeBuses.map((driver) => (
                         <Marker
-                            key={driver.socketId}
+                            key={driver.driverId}
                             position={[driver.lat, driver.lng]}
                             icon={createBusIcon()}
                             eventHandlers={{
@@ -229,21 +274,21 @@ const StudentDashboard = () => {
                     ) : (
                         activeBuses.map(bus => (
                             <button
-                                key={bus.socketId}
+                                key={bus.driverId}
                                 onClick={() => handleFocusShuttle(bus)}
-                                className={`w-full text-left p-4 rounded-xl border transition-all shadow-sm ${selectedBus === bus.socketId
+                                className={`w-full text-left p-4 rounded-xl border transition-all shadow-sm ${selectedBus === bus.driverId
                                     ? 'bg-blue-600 text-white border-blue-600 ring-4 ring-blue-100'
                                     : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-700'
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-3 h-3 rounded-full ${selectedBus === bus.socketId ? 'bg-white' : 'bg-green-500'}`}></div>
+                                        <div className={`w-3 h-3 rounded-full ${selectedBus === bus.driverId ? 'bg-white' : 'bg-green-500'}`}></div>
                                         <span className="font-bold text-lg">Shuttle {bus.driverId.slice(-3)}</span>
                                     </div>
-                                    <Navigation size={16} className={selectedBus === bus.socketId ? 'text-white' : 'text-gray-400'} />
+                                    <Navigation size={16} className={selectedBus === bus.driverId ? 'text-white' : 'text-gray-400'} />
                                 </div>
-                                <div className={`mt-2 text-xs flex justify-between ${selectedBus === bus.socketId ? 'text-blue-100' : 'text-gray-500'}`}>
+                                <div className={`mt-2 text-xs flex justify-between ${selectedBus === bus.driverId ? 'text-blue-100' : 'text-gray-500'}`}>
                                     <span>
                                         Last Update: {(() => {
                                             const diff = Math.floor((now - (bus.lastUpdated || Date.now())) / 1000);
@@ -262,5 +307,4 @@ const StudentDashboard = () => {
         </div>
     );
 };
-
 export default StudentDashboard;
