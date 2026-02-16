@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './SocketContext';
-import { MapPin, AlertTriangle, Power, Bus } from 'lucide-react';
+import { MapPin, AlertTriangle, Power, Bus, RefreshCw } from 'lucide-react';
 
 const DriverDashboard = () => {
     const socket = useSocket();
@@ -10,6 +10,8 @@ const DriverDashboard = () => {
     const [watchId, setWatchId] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
     const [startTime, setStartTime] = useState(null);
+    const [lastSentTime, setLastSentTime] = useState(null);
+
     // Persist Bus Selection
     const [myBusId, setMyBusId] = useState(localStorage.getItem('shuttle_driver_id') || 'Bus 1');
 
@@ -46,27 +48,30 @@ const DriverDashboard = () => {
             setErrorMsg(data.reason || 'Geofence violation');
         });
 
+        // Re-emit last location on reconnect
+        socket.on('connect', () => {
+            if (isSharing && location) {
+                socket.emit('join_role', 'driver');
+                socket.emit('update_location', {
+                    driverId: myBusId,
+                    lat: location.lat,
+                    lng: location.lng
+                });
+            }
+        });
+
         return () => {
             socket.off('force_stop_sharing');
-            stopSharing();
+            socket.off('connect');
+            // Don't stop sharing on unmount automatically to survive refreshes if we want, 
+            // but for now, cleanup is safer.
+            // stopSharing(); 
         };
-    }, [socket]);
+    }, [socket, isSharing, location, myBusId]);
 
     const [sentCount, setSentCount] = useState(0);
 
-    // Effect to emit location when sharing and location updates
-    // MODIFIED: This effect is now REMOVED/Comments out because we emit DIRECTLY in the Geolocation Callback
-    // This prevents "React State Throttling" from blocking updates in the background.
-    /* 
-    useEffect(() => {
-        if (isSharing && socket && location) {
-            socket.emit('update_location', ...);
-        }
-    }, ...); 
-    */
-
     // BACKGROUND ALIVE HACK (Video + Heartbeat)
-    // Audio alone often fails. Video is treated with higher priority by browsers.
     const videoRef = useRef(null);
     const [wakeLock, setWakeLock] = useState(null);
 
@@ -80,6 +85,7 @@ const DriverDashboard = () => {
                     try {
                         const lock = await navigator.wakeLock.request('screen');
                         setWakeLock(lock);
+                        console.log("Wake Lock active");
                     } catch (err) {
                         console.error("WakeLock failed:", err);
                     }
@@ -87,85 +93,40 @@ const DriverDashboard = () => {
             };
             requestWakeLock();
 
+            // Re-acquire wake lock if visibility changes
+            const handleVisChange = async () => {
+                if (document.visibilityState === 'visible' && isSharing) {
+                    await requestWakeLock();
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisChange);
+
+
             // 2. VIDEO HACK (Prevents Tab Freezing)
             if (videoRef.current) {
                 videoRef.current.play().catch(e => console.log("Video autoplay blocked:", e));
             }
 
-            // 3. AUDIO CONTEXT HACK (Oscillator)
-            // Creates a silent audio context to force the browser to keep the audio thread (and thus the JS thread) alive.
-            let audioCtx = null;
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (AudioContext) {
-                    audioCtx = new AudioContext();
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-
-                    oscillator.type = 'sine';
-                    oscillator.frequency.value = 60; // Low frequency
-                    gainNode.gain.value = 0.001; // Almost silent, but technically "playing"
-
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-
-                    oscillator.start();
-                    console.log("Audio Context Started");
-                }
-            } catch (e) {
-                console.error("Audio Context failed:", e);
-            }
-
-            // 4. SOCKET HEARTBEAT (Prevents connection closing)
-            // Send a 'ping' every 2 seconds to keep the socket active
+            // 3. SOCKET HEARTBEAT (Prevents connection closing & keeps alive)
+            // Send a 'ping' every 10 seconds to keep the socket active
             heartbeatInterval = setInterval(() => {
                 if (socket?.connected) {
+                    // Send a dummy update if real GPS hasn't fired in a while
+                    // This keeps the socket "hot"
                     socket.emit('ping_keepalive');
-                    // Use existing location if available to force traffic
-                    if (location) {
-                        socket.emit('update_location', {
-                            driverId: myBusId,
-                            lat: location.lat,
-                            lng: location.lng
-                        });
-                    }
                 }
-            }, 3000);
+            }, 10000);
 
             return () => {
                 if (wakeLock) wakeLock.release();
                 if (videoRef.current) {
                     videoRef.current.pause();
-                    videoRef.current.currentTime = 0;
-                }
-                if (audioCtx) {
-                    audioCtx.close().catch(e => console.log("Error closing AudioContext", e));
                 }
                 clearInterval(heartbeatInterval);
+                document.removeEventListener('visibilitychange', handleVisChange);
             };
         }
-    }, [isSharing, socket, myBusId, location]);
-
-    // RECONNECTION & VISIBILITY RECOVERY
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                console.log("App woke up!");
-                if (socket && !socket.connected) {
-                    console.log("Socket disconnected, trying to reconnect...");
-                    socket.connect();
-                }
-                // Force immediate update to sync state
-                if (isSharing && location) {
-                    socket.emit('update_location', { driverId: myBusId, lat: location.lat, lng: location.lng });
-                }
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [socket, isSharing, location, myBusId]);
-
+    }, [isSharing, socket]);
 
     const startSharing = () => {
         if (!socket) return;
@@ -178,25 +139,22 @@ const DriverDashboard = () => {
 
         if (!watchId) {
             // PRIMARY: Watch Position
+            // IMPORTANT: 'enableHighAccuracy: true' is CRITICAL for persistent background tracking on many devices
             const id = navigator.geolocation.watchPosition(
-                (pos) => { handleLocationUpdate(pos.coords); },
-                (err) => { console.error("GPS Watch Error:", err); },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+                (pos) => {
+                    handleLocationUpdate(pos.coords);
+                },
+                (err) => {
+                    console.error("GPS Watch Error:", err);
+                    setErrorMsg("GPS Error: " + err.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                }
             );
             setWatchId(id);
-
-            // SECONDARY: Backup Polling (Forces update if watchPosition sleeps)
-            // Some browsers wake up for setInterval but kill watchPosition listeners.
-            const pollId = setInterval(() => {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => { handleLocationUpdate(pos.coords); },
-                    (err) => console.log("Polling GPS skipped"),
-                    { enableHighAccuracy: true, maximumAge: 0, timeout: 2000 }
-                );
-            }, 5000);
-
-            // Store pollId in a ref or just clear it in stopSharing (simpler: separate tracker needed ideally, but let's attach to window for hack)
-            window.shuttlePollId = pollId;
         }
     };
 
@@ -204,8 +162,10 @@ const DriverDashboard = () => {
     const handleLocationUpdate = ({ latitude, longitude }) => {
         const newLocation = { lat: latitude, lng: longitude };
         setLocation(newLocation);
+        setLastSentTime(new Date().toLocaleTimeString());
 
         if (socket && socket.connected) {
+            // DIRECT EMIT: Don't rely on React state effects which might throttle
             socket.emit('update_location', {
                 driverId: myBusId,
                 lat: latitude,
@@ -272,8 +232,13 @@ const DriverDashboard = () => {
                             }`}>
                             {status === 'OUT OF ZONE' ? 'OUT OF ZONE' : status}
                         </h3>
-                        <p className="text-sm font-medium text-gray-400 mt-2 h-6">
-                            {status === 'ONLINE' ? `Live for: ${elapsed}` : 'Ready to start'}
+                        <p className="text-sm font-medium text-gray-400 mt-2 h-6 flex items-center gap-2">
+                            {status === 'ONLINE' ? (
+                                <>
+                                    <span>Live: {elapsed}</span>
+                                    {sentCount > 0 && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">Sent: {sentCount}</span>}
+                                </>
+                            ) : 'Ready to start'}
                         </p>
                     </div>
 
@@ -309,7 +274,7 @@ const DriverDashboard = () => {
                             <p>STATUS: {socket?.connected ? <span className="text-green-400">CONN</span> : <span className="text-red-500">DISC</span>}</p>
                             <p>MODE: {wakeLock ? '⚡ AWAKE' : '💤 NORMAL'}</p>
                             <p className="col-span-2 truncate">GPS: {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'WAITING...'}</p>
-                            <p>SENT: {sentCount}</p>
+                            <p>LAST SENT: {lastSentTime || 'NEVER'}</p>
                             <p>ID: {myBusId}</p>
                         </div>
                     </div>
@@ -317,7 +282,7 @@ const DriverDashboard = () => {
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v1.8 (Persistent)
+                VIT Shuttle System v2.0 (Persistent)
             </p>
 
             {/* Hidden Video for Background Keep-Alive - Base64 Safe Version */}
@@ -327,7 +292,7 @@ const DriverDashboard = () => {
                 muted
                 loop
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
-                src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAz5tb292AAAAbG12aGQAAAAA629nAAAAAADrb2cAAAH0AAAAEAAAAAAABAAAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACHBhc3AAAAABAAAAAQAAAAEAAAABAAAAAQAAAF91ZHRhAAAAW21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAAYXQ3NwAAACBlbHN0AAAAAAAAAAEAAAH0AAAAAAABAAAAAQAAAAABTG1kYXQAAAAAAAAAIxe4wA33/w=="
+                src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAz5tb292AAAAbG12aGQAAAAA629nAAAAAADrb2cAAAH0AAAAEAAAAAAABAAAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACHBhc3AAAAABAAAAAQAAAAABAAAAAQAAAF91ZHRhAAAAW21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAAYXQ3NwAAACBlbHN0AAAAAAAAAAEAAAH0AAAAAAABAAAAAQAAAAABTG1kYXQAAAAAAAAAIxe4wA33/w=="
             />
         </div>
     );
