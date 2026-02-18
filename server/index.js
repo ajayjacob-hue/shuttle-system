@@ -71,6 +71,21 @@ io.on('connection', async (socket) => {
     } else if (role === 'admin') {
       socket.join('admin');
       console.log(`Admin joined: ${socket.id}`);
+
+      // Send active drivers to admin too
+      const driversList = {};
+      activeDrivers.forEach((val, key) => {
+        if (val.lat !== null && val.lng !== null) {
+          driversList[key] = {
+            socketId: key,
+            driverId: val.driverId,
+            lat: val.lat,
+            lng: val.lng,
+            lastUpdate: val.lastUpdate
+          };
+        }
+      });
+      socket.emit('initial_drivers', driversList);
       socket.emit('routes_update', await getRoutes());
     }
   });
@@ -115,7 +130,7 @@ io.on('connection', async (socket) => {
     // Also remove from active list immediately
     if (activeDrivers.has(targetSocketId)) {
       activeDrivers.delete(targetSocketId);
-      io.to('student').emit('driver_offline', { socketId: targetSocketId });
+      io.to('student').to('admin').emit('driver_offline', { socketId: targetSocketId });
     }
   });
 
@@ -131,7 +146,7 @@ io.on('connection', async (socket) => {
         console.log(`Duplicate driver ${data.driverId} detected. Removing old socket ${sId}`);
         activeDrivers.delete(sId);
         // Tell students to remove the old ghost immediately
-        io.to('student').emit('driver_offline', { socketId: sId });
+        io.to('student').to('admin').emit('driver_offline', { socketId: sId });
       }
     }
 
@@ -145,7 +160,7 @@ io.on('connection', async (socket) => {
       // Remove from active list
       if (activeDrivers.has(socket.id)) {
         activeDrivers.delete(socket.id);
-        io.to('student').emit('driver_offline', { socketId: socket.id });
+        io.to('student').to('admin').emit('driver_offline', { socketId: socket.id });
       }
       return;
     }
@@ -161,14 +176,14 @@ io.on('connection', async (socket) => {
 
     activeDrivers.set(socket.id, driverInfo);
 
-    // Broadcast to students
-    io.to('student').emit('shuttle_moved', driverInfo);
+    // Broadcast to students AND admins
+    io.to('student').to('admin').emit('shuttle_moved', driverInfo);
   });
 
   socket.on('stop_sharing', () => {
     if (activeDrivers.has(socket.id)) {
       activeDrivers.delete(socket.id);
-      io.to('student').emit('driver_offline', { socketId: socket.id });
+      io.to('student').to('admin').emit('driver_offline', { socketId: socket.id });
     }
   });
 
@@ -176,7 +191,7 @@ io.on('connection', async (socket) => {
     console.log('User disconnected:', socket.id);
     if (activeDrivers.has(socket.id)) {
       activeDrivers.delete(socket.id);
-      io.to('student').emit('driver_offline', { socketId: socket.id });
+      io.to('student').to('admin').emit('driver_offline', { socketId: socket.id });
     }
   });
 });
