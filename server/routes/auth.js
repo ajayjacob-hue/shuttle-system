@@ -54,17 +54,15 @@ router.post('/driver/login', async (req, res) => {
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // use STARTTLS
+    service: 'gmail', // Use built-in Gmail preset (handles ports/secure auto)
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        rejectUnauthorized: false // Helps with some self-signed cert issues on cloud
+        rejectUnauthorized: false
     },
-    family: 4 // Force IPv4 (Fixes Gmail timeouts on some IPv6 cloud networks)
+    family: 4 // Force IPv4
 });
 
 // Verify connection configuration
