@@ -99,8 +99,42 @@ const AdminDashboard = () => {
 
 
     // Action Handlers
-    const handleAddPoint = (point) => {
-        setCurrentRoutePoints(prev => [...prev, point]);
+    const fetchRouteSegment = async (start, end) => {
+        try {
+            // OSRM requires lon,lat
+            const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.code === 'Ok' && data.routes && data.routes[0]) {
+                // OSRM returns [lon, lat], Leaflet needs [lat, lon]
+                return data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            }
+        } catch (err) {
+            console.error("OSRM Fetch Error", err);
+        }
+        return null; // Fallback or failure
+    };
+
+    const handleAddPoint = async (point) => {
+        // If we have a previous point, try to route to the new one
+        if (currentRoutePoints.length > 0) {
+            const lastPoint = currentRoutePoints[currentRoutePoints.length - 1];
+            const segment = await fetchRouteSegment(lastPoint, point);
+
+            if (segment) {
+                // Add the segment points (excluding the first one since it overlaps with lastPoint)
+                // actually OSRM includes start/end, so we might want to slice(1)
+                const newPoints = segment.slice(1);
+                setCurrentRoutePoints(prev => [...prev, ...newPoints]);
+            } else {
+                // Fallback: Straight line
+                setCurrentRoutePoints(prev => [...prev, point]);
+            }
+        } else {
+            // First point
+            setCurrentRoutePoints(prev => [...prev, point]);
+        }
     };
 
     const handleSaveRoute = () => {
