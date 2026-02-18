@@ -179,11 +179,13 @@ io.on('connection', (socket) => {
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/dist')));
-
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+app.get(/.*/, (req, res) => {
+  const indexPath = path.join(__dirname, '../client/dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send("Client build not found. Please run 'npm run build' in client directory.");
+  }
 });
 
 const PORT = process.env.PORT || 3000;
