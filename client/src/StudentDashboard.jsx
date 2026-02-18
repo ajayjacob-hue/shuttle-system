@@ -267,6 +267,10 @@ const StudentDashboard = () => {
                                 {authLoading ? 'Logging in...' : 'Login'}
                             </button>
                         </form>
+                    ) : (
+                        // OTP verification form would go here
+                        <p>OTP sent to your email. Please check your inbox.</p>
+                    )}
                 </div>
             </div>
         );
