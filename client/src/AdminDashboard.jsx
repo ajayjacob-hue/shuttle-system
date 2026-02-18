@@ -52,6 +52,7 @@ const AdminDashboard = () => {
     const [currentRoutePoints, setCurrentRoutePoints] = useState([]);
     const [routeName, setRouteName] = useState('');
     const [routeColor, setRouteColor] = useState('#ff0000');
+    const [snapToRoads, setSnapToRoads] = useState(true);
 
     useEffect(() => {
         if (!socket) return;
@@ -234,6 +235,18 @@ const AdminDashboard = () => {
                                         onChange={e => setRouteColor(e.target.value)}
                                         className="h-8 w-16 p-0 border-0"
                                     />
+                                </div>
+                                <div className="flex items-center gap-2 bg-white/50 p-2 rounded">
+                                    <input
+                                        type="checkbox"
+                                        id="snapToRoads"
+                                        checked={snapToRoads}
+                                        onChange={e => setSnapToRoads(e.target.checked)}
+                                        className="rounded text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="snapToRoads" className="text-xs text-gray-700 cursor-pointer select-none">
+                                        Snap to Roads (OSRM)
+                                    </label>
                                 </div>
                                 <p className="text-xs text-blue-600 italic">Click map to add points ({currentRoutePoints.length})</p>
                                 <div className="flex gap-2">
