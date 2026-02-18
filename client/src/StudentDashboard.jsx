@@ -233,6 +233,15 @@ const StudentDashboard = () => {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
+
+            // Check for Mock OTP (Fallback)
+            if (data.mockOtp) {
+                alert(data.message); // Show the code to the user
+                console.log("Mock OTP:", data.mockOtp);
+            } else if (data.message && data.message.includes("Mock OTP")) {
+                alert(data.message);
+            }
+
             setOtpSent(true);
         } catch (err) {
             setAuthError(err.message);
