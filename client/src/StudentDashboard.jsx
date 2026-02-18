@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
+import { calculateETA } from './utils/eta';
 import L from 'leaflet';
 
 import { Bus, Navigation, Crosshair, RefreshCw } from 'lucide-react';
@@ -64,6 +65,7 @@ const StudentDashboard = () => {
     const [now, setNow] = useState(Date.now());
     const [mapCenterTarget, setMapCenterTarget] = useState(null);
     const [userLoc, setUserLoc] = useState(null);
+    const [etas, setEtas] = useState({}); // Keyed by driverId
 
     // Update 'now' every second to force UI refresh for "seconds ago" timer
     useEffect(() => {
@@ -133,6 +135,35 @@ const StudentDashboard = () => {
             socket.off('initial_drivers');
         };
     }, [socket, selectedBus]);
+
+    // Calculate ETAs periodically or when locations change
+    useEffect(() => {
+        if (!userLoc) return;
+
+        const updateEtas = async () => {
+            const newEtas = {};
+            const promises = Object.values(drivers).map(async (driver) => {
+                if (driver.lat && driver.lng) {
+                    try {
+                        const time = await calculateETA(
+                            { lat: driver.lat, lng: driver.lng },
+                            userLoc
+                        );
+                        newEtas[driver.driverId] = time;
+                    } catch (e) {
+                        console.error("ETA Calc Error", e);
+                    }
+                }
+            });
+
+            await Promise.all(promises);
+            setEtas(prev => ({ ...prev, ...newEtas }));
+        };
+
+        // Debounce slightly to avoid rapid updates
+        const timer = setTimeout(updateEtas, 1000);
+        return () => clearTimeout(timer);
+    }, [drivers, userLoc]);
 
     // Get User Location on Mount
     useEffect(() => {
@@ -284,7 +315,14 @@ const StudentDashboard = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-3 h-3 rounded-full ${selectedBus === bus.driverId ? 'bg-white' : 'bg-green-500'}`}></div>
-                                        <span className="font-bold text-lg">Shuttle {bus.driverId.slice(-3)}</span>
+                                        <div>
+                                            <span className="font-bold text-lg block leading-none">Shuttle {bus.driverId.slice(-3)}</span>
+                                            {etas[bus.driverId] && (
+                                                <span className={`text-xs font-bold ${selectedBus === bus.driverId ? 'text-blue-100' : 'text-blue-600'}`}>
+                                                    ETA: {etas[bus.driverId]}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     <Navigation size={16} className={selectedBus === bus.driverId ? 'text-white' : 'text-gray-400'} />
                                 </div>
