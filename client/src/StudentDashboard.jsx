@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
+import { useAuth } from './AuthContext'; // Import Auth
 import { calculateETA } from './utils/eta';
 import L from 'leaflet';
 
-import { Bus, Navigation, Crosshair, RefreshCw } from 'lucide-react';
+import { Bus, Navigation, Crosshair, RefreshCw, LogOut } from 'lucide-react';
 
 // Fix Leaflet's default icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -59,6 +60,13 @@ const MapController = ({ centerOn, zoom, trigger }) => {
 };
 
 const StudentDashboard = () => {
+    const { user, login, logout } = useAuth();
+    const [email, setEmail] = useState('');
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
+    const [authLoading, setAuthLoading] = useState(false);
+    const [authError, setAuthError] = useState('');
+
     const socket = useSocket();
     const [drivers, setDrivers] = useState({}); // Keyed by DRIVER ID now (e.g. "Bus 1"), NOT socket.id
     const [selectedBus, setSelectedBus] = useState(null); // This is now a driverId string
@@ -75,7 +83,7 @@ const StudentDashboard = () => {
     }, []);
 
     useEffect(() => {
-        if (!socket) return;
+        if (!socket || !user || user.role !== 'student') return; // Auth Guard
         socket.emit('join_role', 'student');
 
         const handleMove = (data) => {
@@ -140,7 +148,7 @@ const StudentDashboard = () => {
             socket.off('initial_drivers');
             socket.off('routes_update');
         };
-    }, [socket, selectedBus]);
+    }, [socket, selectedBus, user]);
 
     // Calculate ETAs periodically or when locations change
     useEffect(() => {
@@ -211,6 +219,101 @@ const StudentDashboard = () => {
         }
     };
 
+    // --- AUTH LOGIC ---
+    const handleSendOtp = async (e) => {
+        e.preventDefault();
+        setAuthLoading(true);
+        setAuthError('');
+        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        try {
+            const res = await fetch(`${VITE_API_URL}/api/auth/student/login-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            setOtpSent(true);
+        } catch (err) {
+            setAuthError(err.message);
+        } finally {
+            setAuthLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e) => {
+        e.preventDefault();
+        setAuthLoading(true);
+        setAuthError('');
+        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        try {
+            const res = await fetch(`${VITE_API_URL}/api/auth/student/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, otp })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            login(data.token, data.user);
+        } catch (err) {
+            setAuthError(err.message);
+        } finally {
+            setAuthLoading(false);
+        }
+    };
+
+    // --- RENDER AUTH SCREEN ---
+    if (!user || user.role !== 'student') {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+                    <h2 className="text-2xl font-bold mb-6 text-center text-blue-900">Student Login</h2>
+                    {authError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{authError}</div>}
+
+                    {!otpSent ? (
+                        <form onSubmit={handleSendOtp} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700">Student Email</label>
+                                <input
+                                    type="email"
+                                    required
+                                    className="w-full border p-2 rounded"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    placeholder="yourname@vit.ac.in"
+                                />
+                            </div>
+                            <button type="submit" disabled={authLoading} className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">
+                                {authLoading ? 'Sending OTP...' : 'Send OTP'}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleVerifyOtp} className="space-y-4">
+                            <div className="text-center text-sm text-gray-500 mb-2">OTP sent to {email}</div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700">Enter OTP</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full border p-2 rounded text-center letter-spacing-2 text-xl"
+                                    value={otp}
+                                    onChange={e => setOtp(e.target.value)}
+                                    placeholder="123456"
+                                />
+                            </div>
+                            <button type="submit" disabled={authLoading} className="w-full bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700">
+                                {authLoading ? 'Verifying...' : 'Verify & Login'}
+                            </button>
+                            <button type="button" onClick={() => setOtpSent(false)} className="w-full text-blue-500 text-sm hover:underline">
+                                Change Email
+                            </button>
+                        </form>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 overflow-hidden relative">
 
@@ -271,7 +374,7 @@ const StudentDashboard = () => {
                         >
                             <Popup direction="top" offset={[0, -20]} opacity={1}>
                                 <div className="font-sans text-center">
-                                    <strong className="text-blue-900 block mb-1">Shuttle {driver.driverId}</strong>
+                                    <strong className="text-blue-900 block mb-1">Shuttle {driver.driverId.slice(-3)}</strong>
                                     <button
                                         onClick={() => handleFocusShuttle(driver)}
                                         className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded mt-1 hover:bg-blue-200"
@@ -304,9 +407,10 @@ const StudentDashboard = () => {
                             {socket?.connected ? '● Server Connected' : '○ Connecting...'}
                         </p>
                     </div>
-                    <div className="text-[10px] bg-green-100 text-green-700 md:bg-blue-800 md:text-blue-100 px-2 py-1 rounded-full">
-                        {activeBuses.length} Active
-                    </div>
+
+                    <button onClick={logout} className="p-2 ml-2 bg-gray-100 text-gray-700 md:bg-blue-800 md:text-white rounded hover:bg-gray-200 md:hover:bg-blue-700">
+                        <LogOut size={16} />
+                    </button>
                 </div>
 
                 {/* List */}

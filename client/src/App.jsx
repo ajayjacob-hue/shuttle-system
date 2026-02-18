@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { SocketProvider } from './SocketContext';
+import { AuthProvider } from './AuthContext';
 import DriverDashboard from './DriverDashboard';
 import StudentDashboard from './StudentDashboard';
 import AdminLogin from './AdminLogin';
@@ -46,22 +47,24 @@ const Landing = () => {
 function App() {
   return (
     <SocketProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/driver" element={<DriverDashboard />} />
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Routes>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/driver" element={<DriverDashboard />} />
+            <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          </Routes>
 
-        {/* Global Back Button (hidden on landing) */}
-        {window.location.pathname !== '/' && (
-          <a href="/" className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-1 rounded-full text-xs opacity-50 hover:opacity-100 z-[9999]">
-            Home
-          </a>
-        )}
-      </BrowserRouter>
+          {/* Global Back Button (hidden on landing) */}
+          {window.location.pathname !== '/' && (
+            <a href="/" className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-1 rounded-full text-xs opacity-50 hover:opacity-100 z-[9999]">
+              Home
+            </a>
+          )}
+        </BrowserRouter>
+      </AuthProvider>
     </SocketProvider>
   );
 }

@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './SocketContext';
-import { MapPin, AlertTriangle, Power, Bus, RefreshCw } from 'lucide-react';
+import { useAuth } from './AuthContext';
+import { MapPin, AlertTriangle, Power, LogOut } from 'lucide-react';
 
 const DriverDashboard = () => {
+    const { user, login, logout } = useAuth();
+    const [isLoginMode, setIsLoginMode] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [authError, setAuthError] = useState('');
+    const [authLoading, setAuthLoading] = useState(false);
+
+    // Dashboard State
     const socket = useSocket();
     const [isSharing, setIsSharing] = useState(false);
     const [status, setStatus] = useState('OFFLINE'); // OFFLINE, ONLINE, OUT_OF_BOUNDS
@@ -11,15 +20,6 @@ const DriverDashboard = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [startTime, setStartTime] = useState(null);
     const [lastSentTime, setLastSentTime] = useState(null);
-
-    // Persist Bus Selection
-    const [myBusId, setMyBusId] = useState(localStorage.getItem('shuttle_driver_id') || 'Bus 1');
-
-    useEffect(() => {
-        localStorage.setItem('shuttle_driver_id', myBusId);
-    }, [myBusId]);
-
-    const BUS_OPTIONS = ['Bus 1', 'Bus 2', 'Bus 3', 'Bus 4', 'Bus 5', 'Bus 6', 'Bus 7', 'Bus 8', 'Bus 9', 'Bus 10'];
 
     // We use a ref for location to access it inside the worker callback without closure stale state
     const locationRef = useRef(null);
@@ -44,7 +44,7 @@ const DriverDashboard = () => {
 
 
     useEffect(() => {
-        if (!socket) return;
+        if (!socket || !user || user.role !== 'driver') return;
 
         // Always identify as driver
         socket.emit('join_role', 'driver');
@@ -70,7 +70,7 @@ const DriverDashboard = () => {
             socket.off('force_stop_sharing');
             socket.off('connect');
         };
-    }, [socket, isSharing, myBusId]);
+    }, [socket, isSharing, user]);
 
     const [sentCount, setSentCount] = useState(0);
 
@@ -101,17 +101,12 @@ const DriverDashboard = () => {
         if (!isSharing) return;
 
         // 1. HEARTBEAT: Send what we have immediately. 
-        // This keeps the "Last Updated" timer fresh even if GPS is stuck.
-        if (locationRef.current && socket?.connected) {
-            // We emit directly here to ensure the server knows we're alive
-            // We can mark this as a "heartbeat" update if needed, but standard update is fine
-            // Just ensures the map icon doesn't turn stale
+        if (locationRef.current && socket?.connected && user) {
             socket.emit('update_location', {
-                driverId: myBusId,
+                driverId: user.email, // Use EMAIL as the unique Driver ID
                 lat: locationRef.current.lat,
                 lng: locationRef.current.lng
             });
-            // Update debug locally? Maybe not to avoid re-renders.
         } else if (socket?.connected) {
             socket.emit('ping_keepalive');
         }
@@ -131,10 +126,7 @@ const DriverDashboard = () => {
 
     useEffect(() => {
         if (isSharing) {
-            // Start Worker Loop
             workerRef.current.postMessage('start');
-
-            // 1. WAKE LOCK (Screen)
             const requestWakeLock = async () => {
                 if ('wakeLock' in navigator) {
                     try {
@@ -147,7 +139,6 @@ const DriverDashboard = () => {
             };
             requestWakeLock();
 
-            // Re-acquire lock if visibility changes
             const handleVisChange = async () => {
                 if (document.visibilityState === 'visible' && isSharing) {
                     await requestWakeLock();
@@ -155,7 +146,6 @@ const DriverDashboard = () => {
             };
             document.addEventListener('visibilitychange', handleVisChange);
 
-            // 2. AUDIO HACK (Better than video)
             if (audioRef.current) {
                 audioRef.current.play().catch(e => console.log("Audio autoplay blocked:", e));
             }
@@ -173,7 +163,7 @@ const DriverDashboard = () => {
     }, [isSharing]);
 
     const startSharing = () => {
-        if (!socket) return;
+        if (!socket || !user) return;
         setStatus('ONLINE');
         setIsSharing(true);
         setErrorMsg('');
@@ -181,13 +171,11 @@ const DriverDashboard = () => {
         setElapsed('00:00');
         setSentCount(0);
 
-        // Prepare Audio context unlocking
         if (audioRef.current) {
             audioRef.current.play().catch(console.error);
         }
 
         if (!watchId) {
-            // PRIMARY: Watch Position
             const id = navigator.geolocation.watchPosition(
                 (pos) => {
                     handleLocationUpdate(pos.coords);
@@ -206,11 +194,10 @@ const DriverDashboard = () => {
         }
     };
 
-    // Helper to emit
     const emitLocation = (lat, lng) => {
-        if (socket && socket.connected) {
+        if (socket && socket.connected && user) {
             socket.emit('update_location', {
-                driverId: myBusId,
+                driverId: user.email,
                 lat: lat,
                 lng: lng
             });
@@ -218,17 +205,11 @@ const DriverDashboard = () => {
         }
     };
 
-    // Helper to deduplicate logic
     const handleLocationUpdate = ({ latitude, longitude }) => {
-        // Only update if moved significantly or first time? 
-        // For now, update always to keep it fresh
         const newLocation = { lat: latitude, lng: longitude };
         setLocation(newLocation);
         locationRef.current = newLocation;
-
         setLastSentTime(new Date().toLocaleTimeString());
-
-        // Emit immediately (this handles the "Active" GPS updates)
         emitLocation(latitude, longitude);
     };
 
@@ -241,35 +222,110 @@ const DriverDashboard = () => {
         if (status !== 'OUT_OF_BOUNDS') setStatus('OFFLINE');
     };
 
+    const handleAuthSubmit = async (e) => {
+        e.preventDefault();
+        setAuthError('');
+        setAuthLoading(true);
+
+        const endpoint = isLoginMode ? '/api/auth/driver/login' : '/api/auth/driver/signup';
+        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'; // Fallback
+
+        try {
+            const res = await fetch(`${VITE_API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.message || 'Authentication failed');
+
+            if (isLoginMode) {
+                login(data.token, data.user);
+            } else {
+                setAuthError(data.message); // "Please wait for approval"
+                setIsLoginMode(true); // Switch to login
+            }
+        } catch (err) {
+            setAuthError(err.message);
+        } finally {
+            setAuthLoading(false);
+        }
+    };
+
+    // --- RENDER AUTH SCREEN ---
+    if (!user || user.role !== 'driver') {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+                    <h2 className="text-2xl font-bold mb-6 text-center text-blue-900">
+                        {isLoginMode ? 'Driver Login' : 'Driver Signup'}
+                    </h2>
+
+                    {authError && (
+                        <div className={`p-3 rounded mb-4 text-sm ${authError.includes('wait') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {authError}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleAuthSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700">Email</label>
+                            <input
+                                type="email"
+                                required
+                                className="w-full border p-2 rounded"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700">Password</label>
+                            <input
+                                type="password"
+                                required
+                                className="w-full border p-2 rounded"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={authLoading}
+                            className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {authLoading ? 'Processing...' : (isLoginMode ? 'Login' : 'Sign Up')}
+                        </button>
+                    </form>
+
+                    <div className="mt-4 text-center">
+                        <button
+                            type="button"
+                            onClick={() => { setIsLoginMode(!isLoginMode); setAuthError(''); }}
+                            className="text-blue-500 hover:underline text-sm"
+                        >
+                            {isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Login'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER DASHBOARD (LOGGED IN) ---
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="bg-blue-600 p-6 text-white shadow-md">
-                    <h2 className="text-xl font-bold opacity-90 mb-2">Driver Portal</h2>
-
-                    {/* Bus Selector */}
-                    <div className="flex items-center gap-3">
-                        <div className="relative w-full">
-                            <select
-                                value={myBusId}
-                                onChange={(e) => setMyBusId(e.target.value)}
-                                disabled={isSharing}
-                                className="w-full bg-blue-700 text-white font-bold text-xl py-2 px-4 rounded-lg appearance-none border border-blue-500 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
-                            >
-                                {BUS_OPTIONS.map(opt => (
-                                    <option key={opt} value={opt} className="bg-white text-gray-900">{opt}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                                <svg className="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
-
-                        <span className={`text-xs font-bold uppercase shrink-0 ${socket?.connected ? 'text-green-300' : 'text-red-300 animate-pulse'}`}>
-                            {socket?.connected ? 'Connected' : '...'}
-                        </span>
+                <div className="bg-blue-600 p-6 text-white shadow-md flex justify-between items-center">
+                    <div>
+                        <h2 className="text-xl font-bold opacity-90">Driver Portal</h2>
+                        <p className="text-xs text-blue-200">{user.email}</p>
                     </div>
+
+                    <button onClick={logout} className="p-2 bg-blue-700 rounded hover:bg-blue-800">
+                        <LogOut size={20} />
+                    </button>
                 </div>
 
                 <div className="p-8 flex flex-col space-y-8">
@@ -332,14 +388,14 @@ const DriverDashboard = () => {
                             <p>MODE: {wakeLock ? '⚡ AWAKE' : '💤 NORMAL'}</p>
                             <p className="col-span-2 truncate">GPS: {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'WAITING...'}</p>
                             <p>LAST SENT: {lastSentTime || 'NEVER'}</p>
-                            <p>ID: {myBusId}</p>
+                            <p>ID: {user.email}</p>
                         </div>
                     </div>
                 </div>
             </div>
             {/* Footer Info */}
             <p className="text-center text-xs text-gray-300 mt-4">
-                VIT Shuttle System v2.3 (Unique ID)
+                VIT Shuttle System v2.3 (Auth Enabled)
             </p>
 
             {/* Hidden Video element for audio/media playback keep-alive */}

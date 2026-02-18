@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
+import { useAuth } from './AuthContext'; // Auth
 import L from 'leaflet';
-import { Bus, Trash2, Save, StopCircle, Plus, Edit3 } from 'lucide-react';
+import { Bus, Trash2, Save, StopCircle, Plus, Edit3, CheckCircle, XCircle, LogOut, UserCheck } from 'lucide-react';
 
 // Reusing icon logic (could be refactored to shared utility)
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -43,9 +44,18 @@ const RouteDrawer = ({ isEditing, onAddPoint }) => {
 };
 
 const AdminDashboard = () => {
+    const { user, login, logout } = useAuth();
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+
     const socket = useSocket();
     const [drivers, setDrivers] = useState({});
     const [routes, setRoutes] = useState([]);
+
+    // Approval State
+    const [pendingDrivers, setPendingDrivers] = useState([]);
+    const [refreshPending, setRefreshPending] = useState(0);
 
     // Editor State
     const [isEditing, setIsEditing] = useState(false);
@@ -54,8 +64,20 @@ const AdminDashboard = () => {
     const [routeColor, setRouteColor] = useState('#ff0000');
     const [snapToRoads, setSnapToRoads] = useState(true);
 
+    const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+    // Fetch Pending Drivers
     useEffect(() => {
-        if (!socket) return;
+        if (user && user.role === 'admin') {
+            fetch(`${VITE_API_URL}/api/auth/admin/pending-drivers`)
+                .then(res => res.json())
+                .then(data => setPendingDrivers(data))
+                .catch(err => console.error("Failed to fetch pending drivers", err));
+        }
+    }, [user, refreshPending]);
+
+    useEffect(() => {
+        if (!socket || !user || user.role !== 'admin') return;
 
         // ensure we join admin room
         socket.emit('join_role', 'admin');
@@ -90,16 +112,48 @@ const AdminDashboard = () => {
             });
         });
 
+        // Also listen for new signups/approvals to refresh list? 
+        // Ideally we'd have a socket event for "new_driver_signup" or we poll. 
+        // For now, manual refresh or poll.
+
         return () => {
             socket.off('initial_drivers');
             socket.off('routes_update');
             socket.off('shuttle_moved');
             socket.off('driver_offline');
         };
-    }, [socket]);
+    }, [socket, user]);
 
 
     // Action Handlers
+    const handleLogin = (e) => {
+        e.preventDefault();
+        // Hardcoded admin for now as per requirements, or use real auth if we had an endpoint
+        // To keep it simple and consistent with "simulated" admin in previous steps:
+        if (loginEmail === 'admin' && loginPassword === 'admin123') {
+            login('admin-token', { role: 'admin', email: 'admin' });
+        } else {
+            setLoginError('Invalid credentials');
+        }
+    };
+
+    const handleApprove = async (driverId) => {
+        try {
+            const res = await fetch(`${VITE_API_URL}/api/auth/admin/approve-driver`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: driverId })
+            });
+            if (res.ok) {
+                setRefreshPending(prev => prev + 1);
+            } else {
+                alert("Failed to approve");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     const fetchRouteSegment = async (start, end) => {
         try {
             // OSRM requires lon,lat
@@ -168,17 +222,76 @@ const AdminDashboard = () => {
         }
     };
 
+    // --- ADMIN LOGIN SCREEN ---
+    if (!user || user.role !== 'admin') {
+        return (
+            <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
+                    <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 flex items-center justify-center gap-2">
+                        <UserCheck className="text-blue-600" /> Admin Access
+                    </h2>
+                    {loginError && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">{loginError}</div>}
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Username"
+                            className="w-full border p-2 rounded"
+                            value={loginEmail}
+                            onChange={e => setLoginEmail(e.target.value)}
+                        />
+                        <input
+                            type="password"
+                            placeholder="Password"
+                            className="w-full border p-2 rounded"
+                            value={loginPassword}
+                            onChange={e => setLoginPassword(e.target.value)}
+                        />
+                        <button type="submit" className="w-full bg-gray-800 text-white font-bold py-2 rounded hover:bg-gray-700">
+                            Enter Control Panel
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col md:flex-row h-screen w-full bg-gray-100">
             {/* Sidebar Controls */}
             <div className="w-full md:w-80 bg-white shadow-xl z-10 flex flex-col h-[40vh] md:h-full overflow-hidden">
-                <div className="p-4 bg-gray-800 text-white shadow-md">
+                <div className="p-4 bg-gray-800 text-white shadow-md flex justify-between items-center">
                     <h1 className="text-xl font-bold flex items-center gap-2">
                         <Edit3 size={20} /> Admin Panel
                     </h1>
+                    <button onClick={logout} className="text-gray-400 hover:text-white"><LogOut size={18} /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
+                    {/* Pending Approvals */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <h2 className="text-sm font-bold text-yellow-800 uppercase mb-2 flex items-center gap-2">
+                            <UserCheck size={14} /> Pending Approvals ({pendingDrivers.length})
+                        </h2>
+                        {pendingDrivers.length === 0 ? <p className="text-xs text-gray-500 italic">No pending requests</p> : (
+                            <div className="space-y-2 mt-2">
+                                {pendingDrivers.map(d => (
+                                    <div key={d._id} className="bg-white p-2 rounded border flex flex-col gap-2">
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-xs font-bold text-gray-700 truncate block w-full" title={d.email}>{d.email}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleApprove(d.email)}
+                                            className="w-full bg-green-600 text-white text-xs py-1 rounded hover:bg-green-700 flex items-center justify-center gap-1"
+                                        >
+                                            <CheckCircle size={12} /> Approve
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Active Shuttles */}
                     <div>
                         <h2 className="text-sm font-bold text-gray-500 uppercase mb-2">Active Shuttles ({Object.keys(drivers).length})</h2>
@@ -227,7 +340,7 @@ const AdminDashboard = () => {
                                     value={routeName}
                                     onChange={e => setRouteName(e.target.value)}
                                 />
-                                <div className="flexItems-center gap-2">
+                                <div className="flex items-center gap-2">
                                     <label className="text-xs">Color:</label>
                                     <input
                                         type="color"

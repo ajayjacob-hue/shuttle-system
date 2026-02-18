@@ -11,6 +11,11 @@ const Route = require('./models/Route');
 
 const app = express();
 app.use(cors());
+app.use(express.json()); // Parse JSON bodies
+
+// Routes
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
