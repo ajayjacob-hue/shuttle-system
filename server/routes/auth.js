@@ -50,26 +50,59 @@ router.post('/driver/login', async (req, res) => {
 
 // --- STUDENT AUTH (OTP) ---
 
-// Generate OTP (Simulated)
+// Email Transporter
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Generate OTP (Real Email)
 router.post('/student/login-otp', async (req, res) => {
     try {
         const { email } = req.body;
-        // In a real app, send email. Here, we log to console.
+
+        // Basic validation for VIT email if desired
+        // if (!email.endsWith('@vit.ac.in')) return res.status(400).json({ message: 'Use VIT email' });
+
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
         let user = await User.findOne({ email, role: 'student' });
         if (!user) {
-            // Create student account on fly if not exists (or could restrict to VIT mails)
             user = new User({ email, role: 'student', isApproved: true });
         }
         user.otp = otp;
         user.otpExpires = otpExpires;
         await user.save();
 
-        console.log(`>>> OTP for ${email}: ${otp} <<<`); // SIMULATION
-        res.json({ message: 'OTP sent to email (Check Server Console)' });
+        console.log(`>>> OTP for ${email}: ${otp} <<<`); // Keep log for dev backup
+
+        // Send Email
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'VIT Shuttle Login OTP',
+            text: `Your OTP for VIT Shuttle Login is: ${otp}. It expires in 10 minutes.`
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Email Error:", error);
+                // Don't fail the request, just log it. Client can simulate/fallback if needed.
+                return res.status(500).json({ message: 'Failed to send email. Check logs.' });
+            } else {
+                console.log('Email sent: ' + info.response);
+                res.json({ message: `OTP sent to ${email}` });
+            }
+        });
+
     } catch (error) {
+        console.error("OTP Error:", error);
         res.status(500).json({ message: 'Server error' });
     }
 });
