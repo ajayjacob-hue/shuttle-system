@@ -74,65 +74,29 @@ transporter.verify(function (error, success) {
     }
 });
 
-// Generate OTP (Real Email)
-router.post('/student/login-otp', async (req, res) => {
+// Student Direct Login (No OTP for Prototype)
+router.post('/student/login', async (req, res) => {
     try {
         const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'Email is required' });
 
-        // Basic validation for VIT email if desired
-        // if (!email.endsWith('@vit.ac.in')) return res.status(400).json({ message: 'Use VIT email' });
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
+        // Find or create user
         let user = await User.findOne({ email, role: 'student' });
         if (!user) {
             user = new User({ email, role: 'student', isApproved: true });
+            await user.save();
         }
-        user.otp = otp;
-        user.otpExpires = otpExpires;
-        await user.save();
 
-        console.log(`>>> OTP for ${email}: ${otp} <<<`); // Keep log for dev backup
-
-        // Send Email with Timeout
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'VIT Shuttle Login OTP',
-            text: `Your OTP for VIT Shuttle Login is: ${otp}. It expires in 10 minutes.`
-        };
-
-        // Wrap sendMail in a promise to handle timeout
-        const sendMailPromise = new Promise((resolve, reject) => {
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) reject(error);
-                else resolve(info);
-            });
+        const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({
+            token,
+            user: { email: user.email, role: user.role },
+            message: 'Login successful'
         });
-
-        // timeout after 10 seconds
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Email sending timed out. Check internet or credentials.')), 10000);
-        });
-
-        try {
-            const info = await Promise.race([sendMailPromise, timeoutPromise]);
-            console.log('Email sent: ' + info.response);
-            res.json({ message: `OTP sent to ${email}` });
-        } catch (error) {
-            console.error("Email Error:", error.message);
-            // FALLBACK: If email fails (likely Render block), send OTP in response so user can login.
-            // This is for PROTOTYPE ONLY to ensure flow works.
-            res.json({
-                message: `Email failed (${error.message}). MOCK OTP: ${otp}`,
-                mockOtp: otp
-            });
-        }
 
     } catch (error) {
-        console.error("OTP Error Details:", error);
-        res.status(500).json({ message: 'Server error: ' + error.message });
+        console.error("Login Error:", error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
