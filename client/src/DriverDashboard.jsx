@@ -222,6 +222,12 @@ const DriverDashboard = () => {
         if (status !== 'OUT_OF_BOUNDS') setStatus('OFFLINE');
     };
 
+    // Auto-fill email
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('rememberedDriverEmail');
+        if (savedEmail) setEmail(savedEmail);
+    }, []);
+
     const handleAuthSubmit = async (e) => {
         e.preventDefault();
         setAuthError('');
@@ -241,6 +247,7 @@ const DriverDashboard = () => {
             if (!res.ok) throw new Error(data.message || 'Authentication failed');
 
             if (isLoginMode) {
+                localStorage.setItem('rememberedDriverEmail', email); // Save email
                 login(data.token, data.user);
             } else {
                 setAuthError(data.message); // "Please wait for approval"
