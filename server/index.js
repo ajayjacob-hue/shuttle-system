@@ -1,62 +1,59 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const distance = require('@turf/distance').default;
 const { point } = require('@turf/helpers');
-const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
+const Route = require('./models/Route');
 
 const app = express();
 app.use(cors());
 
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => console.error('MongoDB Connection Error:', err));
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all origins for dev simplicity
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
 
 // Configuration
 const VIT_VELLORE_CENTER = point([79.1559, 12.9692]); // [lng, lat] for turf
-const GEOFENCE_RADIUS_KM = 5000; // Increased for testing (was 2.5)
+const GEOFENCE_RADIUS_KM = 5000;
 
 // State
 const activeDrivers = new Map(); // Stores socket.id -> { driverId, lat, lng, lastUpdate }
-const ROUTES_FILE = path.join(__dirname, 'routes.json');
-let savedRoutes = [];
 
-// Load routes on startup
-try {
-  if (fs.existsSync(ROUTES_FILE)) {
-    savedRoutes = JSON.parse(fs.readFileSync(ROUTES_FILE, 'utf8'));
-  }
-} catch (e) {
-  console.error("Failed to load routes:", e);
-}
-
-const saveRoutesToDisk = () => {
+// Initial Data Helper
+const getRoutes = async () => {
   try {
-    fs.writeFileSync(ROUTES_FILE, JSON.stringify(savedRoutes, null, 2));
+    return await Route.find({});
   } catch (e) {
-    console.error("Failed to save routes:", e);
+    console.error("Error fetching routes:", e);
+    return [];
   }
 };
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log('User connected:', socket.id);
 
   // Client joins as 'driver' or 'student'
-  socket.on('join_role', (role) => {
+  socket.on('join_role', async (role) => {
     if (role === 'driver') {
-      // Just join, wait for location update to register ID
       socket.join('driver');
       console.log(`Driver joined: ${socket.id}`);
     } else if (role === 'student') {
       socket.join('student');
       console.log(`Socket ${socket.id} joined as ${role}`);
-      // Send existing drivers to new student
+
       const driversList = {};
       activeDrivers.forEach((val, key) => {
         if (val.lat !== null && val.lng !== null) {
@@ -70,11 +67,11 @@ io.on('connection', (socket) => {
         }
       });
       socket.emit('initial_drivers', driversList);
-      socket.emit('routes_update', savedRoutes);
+      socket.emit('routes_update', await getRoutes());
     } else if (role === 'admin') {
       socket.join('admin');
       console.log(`Admin joined: ${socket.id}`);
-      socket.emit('routes_update', savedRoutes);
+      socket.emit('routes_update', await getRoutes());
     }
   });
 
@@ -88,22 +85,29 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('save_route', (route) => {
-    // route: { id, name, color, waypoints: [] }
-    const idx = savedRoutes.findIndex(r => r.id === route.id);
-    if (idx >= 0) {
-      savedRoutes[idx] = route;
-    } else {
-      savedRoutes.push(route);
+  socket.on('save_route', async (routeData) => {
+    try {
+      // Upsert based on ID
+      await Route.findOneAndUpdate(
+        { id: routeData.id },
+        routeData,
+        { upsert: true, new: true }
+      );
+      const allRoutes = await getRoutes();
+      io.emit('routes_update', allRoutes);
+    } catch (e) {
+      console.error("Error saving route:", e);
     }
-    saveRoutesToDisk();
-    io.emit('routes_update', savedRoutes); // Broadcast to everyone (students needs to see lines)
   });
 
-  socket.on('delete_route', (routeId) => {
-    savedRoutes = savedRoutes.filter(r => r.id !== routeId);
-    saveRoutesToDisk();
-    io.emit('routes_update', savedRoutes);
+  socket.on('delete_route', async (routeId) => {
+    try {
+      await Route.deleteOne({ id: routeId });
+      const allRoutes = await getRoutes();
+      io.emit('routes_update', allRoutes);
+    } catch (e) {
+      console.error("Error deleting route:", e);
+    }
   });
 
   socket.on('admin_force_stop', (targetSocketId) => {
