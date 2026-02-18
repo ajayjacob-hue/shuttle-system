@@ -90,16 +90,40 @@ router.post('/student/login-otp', async (req, res) => {
             text: `Your OTP for VIT Shuttle Login is: ${otp}. It expires in 10 minutes.`
         };
 
-        transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-                console.error("Email Error:", error);
-                // Don't fail the request, just log it. Client can simulate/fallback if needed.
-                return res.status(500).json({ message: 'Failed to send email. Check logs.' });
-            } else {
-                console.log('Email sent: ' + info.response);
-                res.json({ message: `OTP sent to ${email}` });
-            }
+        // Send Email with Timeout
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'VIT Shuttle Login OTP',
+            text: `Your OTP for VIT Shuttle Login is: ${otp}. It expires in 10 minutes.`
+        };
+
+        // Wrap sendMail in a promise to handle timeout
+        const sendMailPromise = new Promise((resolve, reject) => {
+            transporter.sendMail(mailOptions, (error, info) => {
+                if (error) reject(error);
+                else resolve(info);
+            });
         });
+
+        // timeout after 10 seconds
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Email sending timed out. Check internet or credentials.')), 10000);
+        });
+
+        try {
+            const info = await Promise.race([sendMailPromise, timeoutPromise]);
+            console.log('Email sent: ' + info.response);
+            res.json({ message: `OTP sent to ${email}` });
+        } catch (error) {
+            console.error("Email Error:", error.message);
+            // Fallback: still allow login if email fails in dev, but warn user
+            if (process.env.NODE_ENV !== 'production') {
+                res.json({ message: `OTP Sent to CONSOLE (Email failed: ${error.message})` });
+            } else {
+                res.status(500).json({ message: 'Failed to send email. ' + error.message });
+            }
+        }
 
     } catch (error) {
         console.error("OTP Error:", error);
