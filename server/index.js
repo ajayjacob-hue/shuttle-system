@@ -13,6 +13,11 @@ const app = express();
 app.use(cors());
 app.use(express.json()); // Parse JSON bodies
 
+// Root Route for easy checking
+app.get('/', (req, res) => {
+  res.send('Shuttle System Server is Running! Check /api/health for status.');
+});
+
 // Routes
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
