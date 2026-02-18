@@ -122,8 +122,8 @@ router.post('/student/login-otp', async (req, res) => {
         }
 
     } catch (error) {
-        console.error("OTP Error:", error);
-        res.status(500).json({ message: 'Server error' });
+        console.error("OTP Error Details:", error);
+        res.status(500).json({ message: 'Server error: ' + error.message });
     }
 });
 

@@ -17,10 +17,30 @@ app.use(express.json()); // Parse JSON bodies
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+// Health Check
+app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const statusMap = {
+    0: 'Disconnected',
+    1: 'Connected',
+    2: 'Connecting',
+    3: 'Disconnecting',
+  };
+  res.json({
+    status: 'ok',
+    db: statusMap[dbStatus] || 'Unknown',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.error('MongoDB Connection Error:', err));
+
+mongoose.connection.on('error', err => {
+  console.error('MongoDB Runtime Error:', err);
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
