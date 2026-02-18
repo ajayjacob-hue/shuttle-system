@@ -138,19 +138,24 @@ const AdminDashboard = () => {
     };
 
     const handleApprove = async (driverId) => {
+        console.log("Approving driver:", driverId);
         try {
             const res = await fetch(`${VITE_API_URL}/api/auth/admin/approve-driver`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: driverId })
+                body: JSON.stringify({ driverId })
             });
+            console.log("Approve response:", res.status);
             if (res.ok) {
+                alert("Driver Approved!");
                 setRefreshPending(prev => prev + 1);
             } else {
-                alert("Failed to approve");
+                const err = await res.json();
+                alert("Failed to approve: " + (err.message || "Unknown error"));
             }
         } catch (e) {
-            console.error(e);
+            console.error("Approve error:", e);
+            alert("Error approving driver");
         }
     };
 
@@ -281,7 +286,7 @@ const AdminDashboard = () => {
                                             <span className="text-xs font-bold text-gray-700 truncate block w-full" title={d.email}>{d.email}</span>
                                         </div>
                                         <button
-                                            onClick={() => handleApprove(d.email)}
+                                            onClick={() => handleApprove(d._id)}
                                             className="w-full bg-green-600 text-white text-xs py-1 rounded hover:bg-green-700 flex items-center justify-center gap-1"
                                         >
                                             <CheckCircle size={12} /> Approve
