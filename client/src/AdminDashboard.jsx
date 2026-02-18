@@ -119,7 +119,7 @@ const AdminDashboard = () => {
 
     const handleAddPoint = async (point) => {
         // If we have a previous point, try to route to the new one
-        if (currentRoutePoints.length > 0) {
+        if (currentRoutePoints.length > 0 && snapToRoads) {
             const lastPoint = currentRoutePoints[currentRoutePoints.length - 1];
             const segment = await fetchRouteSegment(lastPoint, point);
 
@@ -133,7 +133,7 @@ const AdminDashboard = () => {
                 setCurrentRoutePoints(prev => [...prev, point]);
             }
         } else {
-            // First point
+            // First point or snap disabled
             setCurrentRoutePoints(prev => [...prev, point]);
         }
     };
