@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
 import { calculateETA } from './utils/eta';
@@ -66,6 +66,7 @@ const StudentDashboard = () => {
     const [mapCenterTarget, setMapCenterTarget] = useState(null);
     const [userLoc, setUserLoc] = useState(null);
     const [etas, setEtas] = useState({}); // Keyed by driverId
+    const [routes, setRoutes] = useState([]);
 
     // Update 'now' every second to force UI refresh for "seconds ago" timer
     useEffect(() => {
@@ -126,6 +127,10 @@ const StudentDashboard = () => {
             setDrivers(prev => ({ ...prev, ...transformed }));
         });
 
+        socket.on('routes_update', (updatedRoutes) => {
+            setRoutes(updatedRoutes);
+        });
+
         socket.on('shuttle_moved', handleMove);
         socket.on('driver_offline', handleOffline);
 
@@ -133,6 +138,7 @@ const StudentDashboard = () => {
             socket.off('shuttle_moved', handleMove);
             socket.off('driver_offline', handleOffline);
             socket.off('initial_drivers');
+            socket.off('routes_update');
         };
     }, [socket, selectedBus]);
 
@@ -244,6 +250,15 @@ const StudentDashboard = () => {
                             <Popup>You are here</Popup>
                         </Marker>
                     )}
+
+                    {/* Routes */}
+                    {routes.map(r => (
+                        <Polyline
+                            key={r.id}
+                            positions={r.waypoints}
+                            pathOptions={{ color: r.color, opacity: 0.6, weight: 5 }}
+                        />
+                    ))}
 
                     {activeBuses.map((driver) => (
                         <Marker

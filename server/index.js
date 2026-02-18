@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const distance = require('@turf/distance').default;
 const { point } = require('@turf/helpers');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -22,7 +24,25 @@ const GEOFENCE_RADIUS_KM = 5000; // Increased for testing (was 2.5)
 
 // State
 const activeDrivers = new Map(); // Stores socket.id -> { driverId, lat, lng, lastUpdate }
-let loadingBusCount = 1;
+const ROUTES_FILE = path.join(__dirname, 'routes.json');
+let savedRoutes = [];
+
+// Load routes on startup
+try {
+  if (fs.existsSync(ROUTES_FILE)) {
+    savedRoutes = JSON.parse(fs.readFileSync(ROUTES_FILE, 'utf8'));
+  }
+} catch (e) {
+  console.error("Failed to load routes:", e);
+}
+
+const saveRoutesToDisk = () => {
+  try {
+    fs.writeFileSync(ROUTES_FILE, JSON.stringify(savedRoutes, null, 2));
+  } catch (e) {
+    console.error("Failed to save routes:", e);
+  }
+};
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -50,6 +70,48 @@ io.on('connection', (socket) => {
         }
       });
       socket.emit('initial_drivers', driversList);
+      socket.emit('routes_update', savedRoutes);
+    } else if (role === 'admin') {
+      socket.join('admin');
+      console.log(`Admin joined: ${socket.id}`);
+      socket.emit('routes_update', savedRoutes);
+    }
+  });
+
+  // ADMIN EVENTS
+  socket.on('admin_login', (password, callback) => {
+    if (password === 'admin123') {
+      callback({ success: true });
+      socket.join('admin');
+    } else {
+      callback({ success: false });
+    }
+  });
+
+  socket.on('save_route', (route) => {
+    // route: { id, name, color, waypoints: [] }
+    const idx = savedRoutes.findIndex(r => r.id === route.id);
+    if (idx >= 0) {
+      savedRoutes[idx] = route;
+    } else {
+      savedRoutes.push(route);
+    }
+    saveRoutesToDisk();
+    io.emit('routes_update', savedRoutes); // Broadcast to everyone (students needs to see lines)
+  });
+
+  socket.on('delete_route', (routeId) => {
+    savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+    saveRoutesToDisk();
+    io.emit('routes_update', savedRoutes);
+  });
+
+  socket.on('admin_force_stop', (targetSocketId) => {
+    io.to(targetSocketId).emit('force_stop_sharing', { reason: 'Stopped by Admin' });
+    // Also remove from active list immediately
+    if (activeDrivers.has(targetSocketId)) {
+      activeDrivers.delete(targetSocketId);
+      io.to('student').emit('driver_offline', { socketId: targetSocketId });
     }
   });
 
