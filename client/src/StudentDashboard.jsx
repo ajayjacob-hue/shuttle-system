@@ -226,7 +226,7 @@ const StudentDashboard = () => {
         setAuthError('');
         const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
         try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/student/login-otp`, {
+            const res = await fetch(`${VITE_API_URL}/api/auth/student/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
@@ -234,35 +234,6 @@ const StudentDashboard = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
 
-            // Check for Mock OTP (Fallback)
-            if (data.mockOtp) {
-                alert(data.message); // Show the code to the user
-                console.log("Mock OTP:", data.mockOtp);
-            } else if (data.message && data.message.includes("Mock OTP")) {
-                alert(data.message);
-            }
-
-            setOtpSent(true);
-        } catch (err) {
-            setAuthError(err.message);
-        } finally {
-            setAuthLoading(false);
-        }
-    };
-
-    const handleVerifyOtp = async (e) => {
-        e.preventDefault();
-        setAuthLoading(true);
-        setAuthError('');
-        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/student/verify-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
             login(data.token, data.user);
         } catch (err) {
             setAuthError(err.message);
@@ -293,31 +264,9 @@ const StudentDashboard = () => {
                                 />
                             </div>
                             <button type="submit" disabled={authLoading} className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">
-                                {authLoading ? 'Sending OTP...' : 'Send OTP'}
+                                {authLoading ? 'Logging in...' : 'Login'}
                             </button>
                         </form>
-                    ) : (
-                        <form onSubmit={handleVerifyOtp} className="space-y-4">
-                            <div className="text-center text-sm text-gray-500 mb-2">OTP sent to {email}</div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700">Enter OTP</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full border p-2 rounded text-center letter-spacing-2 text-xl"
-                                    value={otp}
-                                    onChange={e => setOtp(e.target.value)}
-                                    placeholder="123456"
-                                />
-                            </div>
-                            <button type="submit" disabled={authLoading} className="w-full bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700">
-                                {authLoading ? 'Verifying...' : 'Verify & Login'}
-                            </button>
-                            <button type="button" onClick={() => setOtpSent(false)} className="w-full text-blue-500 text-sm hover:underline">
-                                Change Email
-                            </button>
-                        </form>
-                    )}
                 </div>
             </div>
         );
