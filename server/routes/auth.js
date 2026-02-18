@@ -82,13 +82,7 @@ router.post('/student/login-otp', async (req, res) => {
 
         console.log(`>>> OTP for ${email}: ${otp} <<<`); // Keep log for dev backup
 
-        // Send Email
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'VIT Shuttle Login OTP',
-            text: `Your OTP for VIT Shuttle Login is: ${otp}. It expires in 10 minutes.`
-        };
+
 
         // Send Email with Timeout
         const mailOptions = {
