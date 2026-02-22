@@ -60,12 +60,9 @@ const MapController = ({ centerOn, zoom, trigger }) => {
 };
 
 const StudentDashboard = () => {
-    const { user, login, logout } = useAuth();
-    const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
-    const [otpSent, setOtpSent] = useState(false);
-    const [authLoading, setAuthLoading] = useState(false);
-    const [authError, setAuthError] = useState('');
+    // Mock user for Zero Auth Student Access
+    const user = { role: 'student', email: 'guest@vit.ac.in' };
+    const { logout } = useAuth();
 
     const socket = useSocket();
     const [drivers, setDrivers] = useState({}); // Keyed by DRIVER ID now (e.g. "Bus 1"), NOT socket.id
@@ -83,7 +80,7 @@ const StudentDashboard = () => {
     }, []);
 
     useEffect(() => {
-        if (!socket || !user || user.role !== 'student') return; // Auth Guard
+        if (!socket) return;
         socket.emit('join_role', 'student');
 
         const handleMove = (data) => {
@@ -148,133 +145,7 @@ const StudentDashboard = () => {
             socket.off('initial_drivers');
             socket.off('routes_update');
         };
-    }, [socket, selectedBus, user]);
-
-    // Calculate ETAs periodically or when locations change
-    useEffect(() => {
-        if (!userLoc) return;
-
-        const updateEtas = async () => {
-            const newEtas = {};
-            const promises = Object.values(drivers).map(async (driver) => {
-                if (driver.lat && driver.lng) {
-                    try {
-                        const time = await calculateETA(
-                            { lat: driver.lat, lng: driver.lng },
-                            userLoc
-                        );
-                        newEtas[driver.driverId] = time;
-                    } catch (e) {
-                        console.error("ETA Calc Error", e);
-                    }
-                }
-            });
-
-            await Promise.all(promises);
-            setEtas(prev => ({ ...prev, ...newEtas }));
-        };
-
-        // Debounce slightly to avoid rapid updates
-        const timer = setTimeout(updateEtas, 1000);
-        return () => clearTimeout(timer);
-    }, [drivers, userLoc]);
-
-    // Get User Location on Mount
-    useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    setUserLoc(loc);
-                    // Initial center on user
-                    setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
-                },
-                (err) => console.error("Location access denied", err),
-                { enableHighAccuracy: true }
-            );
-        }
-    }, []);
-
-    const activeBuses = Object.values(drivers);
-
-    const handleFocusShuttle = (driver) => {
-        setSelectedBus(driver.driverId);
-        setMapCenterTarget({
-            pos: [driver.lat, driver.lng],
-            zoom: 18,
-            trigger: Date.now()
-        });
-    };
-
-    const handleFocusUser = () => {
-        if (userLoc) {
-            setSelectedBus(null); // Deselect bus when focusing on self
-            setMapCenterTarget({
-                pos: [userLoc.lat, userLoc.lng],
-                zoom: 17,
-                trigger: Date.now()
-            });
-        } else {
-            alert("Waiting for your location...");
-        }
-    };
-
-    // --- AUTH LOGIC ---
-    const handleSendOtp = async (e) => {
-        e.preventDefault();
-        setAuthLoading(true);
-        setAuthError('');
-        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/student/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
-
-            login(data.token, data.user);
-        } catch (err) {
-            setAuthError(err.message);
-        } finally {
-            setAuthLoading(false);
-        }
-    };
-
-    // --- RENDER AUTH SCREEN ---
-    if (!user || user.role !== 'student') {
-        return (
-            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-                    <h2 className="text-2xl font-bold mb-6 text-center text-blue-900">Student Login</h2>
-                    {authError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{authError}</div>}
-
-                    {!otpSent ? (
-                        <form onSubmit={handleSendOtp} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700">Student Email</label>
-                                <input
-                                    type="email"
-                                    required
-                                    className="w-full border p-2 rounded"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    placeholder="yourname@vit.ac.in"
-                                />
-                            </div>
-                            <button type="submit" disabled={authLoading} className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">
-                                {authLoading ? 'Logging in...' : 'Login'}
-                            </button>
-                        </form>
-                    ) : (
-                        // OTP verification form would go here
-                        <p>OTP sent to your email. Please check your inbox.</p>
-                    )}
-                </div>
-            </div>
-        );
-    }
+    }, [socket, selectedBus]); // Removed 'user' dependency since it's now static
 
     return (
         <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 overflow-hidden relative">
