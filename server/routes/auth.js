@@ -60,12 +60,50 @@ router.get('/admin/pending-drivers', async (req, res) => {
     }
 });
 
+// List All Approved Drivers
+router.get('/admin/approved-drivers', async (req, res) => {
+    try {
+        const drivers = await User.find({ role: 'driver', isApproved: true }).select('-password');
+        res.json(drivers);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Approve Driver
 router.post('/admin/approve-driver', async (req, res) => {
     try {
         const { driverId } = req.body;
         await User.findByIdAndUpdate(driverId, { isApproved: true });
         res.json({ message: 'Driver approved' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Reject/Delete Pending Driver
+router.post('/admin/reject-driver', async (req, res) => {
+    try {
+        const { driverId } = req.body;
+        await User.findByIdAndDelete(driverId);
+        res.json({ message: 'Driver request rejected and account removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Delete Driver Account (Requires Admin Password)
+router.post('/admin/delete-driver', async (req, res) => {
+    try {
+        const { driverId, adminPassword } = req.body;
+
+        // Verify Admin Password (hardcoded check matching current system)
+        if (adminPassword !== 'admin123') {
+            return res.status(401).json({ message: 'Unauthorized: Invalid admin password' });
+        }
+
+        await User.findByIdAndDelete(driverId);
+        res.json({ message: 'Driver account deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
     }

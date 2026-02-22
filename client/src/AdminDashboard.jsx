@@ -50,12 +50,13 @@ const AdminDashboard = () => {
     const [loginError, setLoginError] = useState('');
 
     const socket = useSocket();
-    const [drivers, setDrivers] = useState({});
+    const [drivers, setDrivers] = useState({}); // Active (online) drivers
     const [routes, setRoutes] = useState([]);
 
-    // Approval State
+    // Approval/Management State
     const [pendingDrivers, setPendingDrivers] = useState([]);
-    const [refreshPending, setRefreshPending] = useState(0);
+    const [approvedDrivers, setApprovedDrivers] = useState([]);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Editor State
     const [isEditing, setIsEditing] = useState(false);
@@ -66,15 +67,22 @@ const AdminDashboard = () => {
 
     const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-    // Fetch Pending Drivers
+    // Fetch Drivers
     useEffect(() => {
         if (user && user.role === 'admin') {
+            // Fetch Pending
             fetch(`${VITE_API_URL}/api/auth/admin/pending-drivers`)
                 .then(res => res.json())
                 .then(data => setPendingDrivers(data))
                 .catch(err => console.error("Failed to fetch pending drivers", err));
+
+            // Fetch Approved (All Database Approved)
+            fetch(`${VITE_API_URL}/api/auth/admin/approved-drivers`)
+                .then(res => res.json())
+                .then(data => setApprovedDrivers(data))
+                .catch(err => console.error("Failed to fetch approved drivers", err));
         }
-    }, [user, refreshPending]);
+    }, [user, refreshTrigger]);
 
     useEffect(() => {
         if (!socket || !user || user.role !== 'admin') return;
@@ -138,24 +146,61 @@ const AdminDashboard = () => {
     };
 
     const handleApprove = async (driverId) => {
-        console.log("Approving driver:", driverId);
         try {
             const res = await fetch(`${VITE_API_URL}/api/auth/admin/approve-driver`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ driverId })
             });
-            console.log("Approve response:", res.status);
             if (res.ok) {
-                alert("Driver Approved!");
-                setRefreshPending(prev => prev + 1);
+                setRefreshTrigger(prev => prev + 1);
             } else {
                 const err = await res.json();
                 alert("Failed to approve: " + (err.message || "Unknown error"));
             }
         } catch (e) {
             console.error("Approve error:", e);
-            alert("Error approving driver");
+        }
+    };
+
+    const handleReject = async (driverId) => {
+        if (!confirm("Are you sure you want to reject and delete this sign-up request?")) return;
+        try {
+            const res = await fetch(`${VITE_API_URL}/api/auth/admin/reject-driver`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ driverId })
+            });
+            if (res.ok) {
+                setRefreshTrigger(prev => prev + 1);
+            } else {
+                const err = await res.json();
+                alert("Failed to reject: " + (err.message || "Unknown error"));
+            }
+        } catch (e) {
+            console.error("Reject error:", e);
+        }
+    };
+
+    const handleDeleteAccount = async (driverId) => {
+        const adminPassword = window.prompt("To delete this driver account, please enter the admin confirmation password:");
+        if (adminPassword === null) return; // Cancelled
+
+        try {
+            const res = await fetch(`${VITE_API_URL}/api/auth/admin/delete-driver`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ driverId, adminPassword })
+            });
+            if (res.ok) {
+                alert("Account deleted successfully.");
+                setRefreshTrigger(prev => prev + 1);
+            } else {
+                const err = await res.json();
+                alert("Failed to delete: " + (err.message || "Invalid password"));
+            }
+        } catch (e) {
+            console.error("Delete error:", e);
         }
     };
 
@@ -281,18 +326,68 @@ const AdminDashboard = () => {
                         {pendingDrivers.length === 0 ? <p className="text-xs text-gray-500 italic">No pending requests</p> : (
                             <div className="space-y-2 mt-2">
                                 {pendingDrivers.map(d => (
-                                    <div key={d._id} className="bg-white p-2 rounded border flex flex-col gap-2">
-                                        <div className="flex justify-between items-start">
-                                            <span className="text-xs font-bold text-gray-700 truncate block w-full" title={d.email}>{d.email}</span>
+                                    <div key={d._id} className="bg-white p-2 rounded border flex flex-col gap-2 shadow-sm">
+                                        <span className="text-xs font-bold text-gray-700 truncate" title={d.email}>{d.email}</span>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleApprove(d._id)}
+                                                className="flex-1 bg-green-600 text-white text-[10px] py-1 rounded hover:bg-green-700 flex items-center justify-center gap-1"
+                                            >
+                                                <CheckCircle size={10} /> Approve
+                                            </button>
+                                            <button
+                                                onClick={() => handleReject(d._id)}
+                                                className="flex-1 bg-red-500 text-white text-[10px] py-1 rounded hover:bg-red-600 flex items-center justify-center gap-1"
+                                            >
+                                                <XCircle size={10} /> Reject
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => handleApprove(d._id)}
-                                            className="w-full bg-green-600 text-white text-xs py-1 rounded hover:bg-green-700 flex items-center justify-center gap-1"
-                                        >
-                                            <CheckCircle size={12} /> Approve
-                                        </button>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Approved Drivers Management */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                        <h2 className="text-sm font-bold text-blue-800 uppercase mb-2 flex items-center gap-2">
+                            <Bus size={14} /> Approved Drivers ({approvedDrivers.length})
+                        </h2>
+                        {approvedDrivers.length === 0 ? <p className="text-xs text-gray-500 italic">No approved drivers</p> : (
+                            <div className="space-y-2 mt-2">
+                                {approvedDrivers.map(d => {
+                                    // Check if online
+                                    const onlineSocketId = Object.keys(drivers).find(sId => drivers[sId].driverId === d.email);
+
+                                    return (
+                                        <div key={d._id} className="bg-white p-2 rounded border border-blue-100 shadow-sm space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-gray-700 truncate w-3/4" title={d.email}>{d.email}</span>
+                                                <span className={`text-[8px] font-bold uppercase rounded-full px-1 ${onlineSocketId ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {onlineSocketId ? 'Online' : 'Offline'}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                {onlineSocketId && (
+                                                    <button
+                                                        onClick={() => handleForceStop(onlineSocketId)}
+                                                        className="flex-1 bg-orange-100 text-orange-700 text-[9px] py-1 rounded hover:bg-orange-200 flex items-center justify-center gap-1"
+                                                        title="Force Stop Location Sharing"
+                                                    >
+                                                        <StopCircle size={10} /> Force Stop
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDeleteAccount(d._id)}
+                                                    className="flex-1 bg-red-100 text-red-700 text-[9px] py-1 rounded hover:bg-red-200 flex items-center justify-center gap-1"
+                                                    title="Delete Driver Account"
+                                                >
+                                                    <Trash2 size={10} /> Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

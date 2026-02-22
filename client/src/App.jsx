@@ -4,7 +4,6 @@ import { SocketProvider } from './SocketContext';
 import { AuthProvider } from './AuthContext';
 import DriverDashboard from './DriverDashboard';
 import StudentDashboard from './StudentDashboard';
-import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 
 // Landing Page Component
@@ -53,8 +52,7 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/driver" element={<DriverDashboard />} />
             <Route path="/student" element={<StudentDashboard />} />
-            <Route path="/admin" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
 
           {/* Global Back Button (hidden on landing) */}
