@@ -147,6 +147,75 @@ const StudentDashboard = () => {
         };
     }, [socket, selectedBus]); // Removed 'user' dependency since it's now static
 
+    // Calculate ETAs periodically or when locations change
+    useEffect(() => {
+        if (!userLoc) return;
+
+        const updateEtas = async () => {
+            const newEtas = {};
+            const promises = Object.values(drivers).map(async (driver) => {
+                if (driver.lat && driver.lng) {
+                    try {
+                        const time = await calculateETA(
+                            { lat: driver.lat, lng: driver.lng },
+                            userLoc
+                        );
+                        newEtas[driver.driverId] = time;
+                    } catch (e) {
+                        console.error("ETA Calc Error", e);
+                    }
+                }
+            });
+
+            await Promise.all(promises);
+            setEtas(prev => ({ ...prev, ...newEtas }));
+        };
+
+        // Debounce slightly to avoid rapid updates
+        const timer = setTimeout(updateEtas, 1000);
+        return () => clearTimeout(timer);
+    }, [drivers, userLoc]);
+
+    // Get User Location on Mount
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setUserLoc(loc);
+                    // Initial center on user
+                    setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
+                },
+                (err) => console.error("Location access denied", err),
+                { enableHighAccuracy: true }
+            );
+        }
+    }, []);
+
+    const activeBuses = Object.values(drivers);
+
+    const handleFocusShuttle = (driver) => {
+        setSelectedBus(driver.driverId);
+        setMapCenterTarget({
+            pos: [driver.lat, driver.lng],
+            zoom: 18,
+            trigger: Date.now()
+        });
+    };
+
+    const handleFocusUser = () => {
+        if (userLoc) {
+            setSelectedBus(null); // Deselect bus when focusing on self
+            setMapCenterTarget({
+                pos: [userLoc.lat, userLoc.lng],
+                zoom: 17,
+                trigger: Date.now()
+            });
+        } else {
+            alert("Waiting for your location...");
+        }
+    };
+
     return (
         <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 overflow-hidden relative">
 
