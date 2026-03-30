@@ -162,14 +162,45 @@ const DriverDashboard = () => {
         }
     }, [isSharing]);
 
-    const startSharing = () => {
+    const showPersistentNotification = async () => {
+        if ('serviceWorker' in navigator && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification('Shuttle Live Location Active', {
+                    body: 'Your live location is being transmitted in the background.',
+                    icon: '/app-icon.svg',
+                    vibrate: [200, 100, 200],
+                    tag: 'live-location',
+                    renotify: true,
+                    requireInteraction: true,
+                });
+            }
+        }
+    };
+
+    const clearPersistentNotification = async () => {
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready;
+            const notifications = await reg.getNotifications({ tag: 'live-location' });
+            notifications.forEach(notification => notification.close());
+        }
+    };
+
+    const startSharing = async () => {
         if (!socket || !user) return;
+        
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            await Notification.requestPermission();
+        }
+
         setStatus('ONLINE');
         setIsSharing(true);
         setErrorMsg('');
         setStartTime(Date.now());
         setElapsed('00:00');
         setSentCount(0);
+        
+        showPersistentNotification();
 
         if (audioRef.current) {
             audioRef.current.play().catch(console.error);
@@ -213,6 +244,13 @@ const DriverDashboard = () => {
         emitLocation(latitude, longitude);
     };
 
+    const handleStopSharing = () => {
+        const confirmed = window.confirm("Are you sure you want to stop sharing your live location?");
+        if (confirmed) {
+            stopSharing();
+        }
+    };
+
     const stopSharing = () => {
         if (watchId) navigator.geolocation.clearWatch(watchId);
         if (socket) socket.emit('stop_sharing');
@@ -220,6 +258,7 @@ const DriverDashboard = () => {
         setIsSharing(false);
         setStartTime(null);
         if (status !== 'OUT_OF_BOUNDS') setStatus('OFFLINE');
+        clearPersistentNotification();
     };
 
     // Auto-fill email
@@ -371,7 +410,7 @@ const DriverDashboard = () => {
 
                     {/* Main Action Button */}
                     <button
-                        onClick={isSharing ? stopSharing : startSharing}
+                        onClick={isSharing ? handleStopSharing : startSharing}
                         className={`w-full py-6 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
                             ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
                             : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl shadow-blue-200'
