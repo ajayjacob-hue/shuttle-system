@@ -5,6 +5,7 @@ import { AuthProvider } from './AuthContext';
 import DriverDashboard from './DriverDashboard';
 import StudentDashboard from './StudentDashboard';
 import AdminDashboard from './AdminDashboard';
+import InstallPrompt from './InstallPrompt';
 
 // Landing Page Component
 const Landing = () => {
@@ -61,6 +62,8 @@ function App() {
               Home
             </a>
           )}
+          
+          <InstallPrompt />
         </BrowserRouter>
       </AuthProvider>
     </SocketProvider>
