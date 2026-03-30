@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['app-icon.png', 'vite.svg'],
+      includeAssets: ['app-icon.svg', 'vite.svg'],
       manifest: {
         name: 'Vit Shuttle Tracker',
         short_name: 'ShuttleTracker',
@@ -18,19 +18,9 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: 'app-icon.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'app-icon.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'app-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
+            src: 'app-icon.svg',
+            sizes: '192x192 512x512',
+            type: 'image/svg+xml',
             purpose: 'any maskable'
           }
         ]
