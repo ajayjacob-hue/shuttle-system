@@ -284,17 +284,17 @@ app.post('/api/driver/location', (req, res) => {
   res.json({ success: true, shuttleNumber });
 });
 
-// Periodic Cleanup for Stale Drivers (45 seconds without any update)
+// Periodic Cleanup for Stale Drivers (5 minutes without any update)
 setInterval(() => {
   const now = Date.now();
   liveDrivers.forEach((val, driverId) => {
-    if (now - val.lastUpdate > 45000) {
+    if (now - val.lastUpdate > 300000) { // 5 minutes
       console.log(`Cleaning up stale driver: ${driverId}`);
       liveDrivers.delete(driverId);
       io.to('student').to('admin').emit('driver_offline', { socketId: val.socketId, driverId });
     }
   });
-}, 10000);
+}, 30000); // Check every 30s instead of 10s to be less aggressive
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/dist')));

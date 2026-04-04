@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 import { MapPin, AlertTriangle, Power, LogOut } from 'lucide-react';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor, registerPlugin, CapacitorHttp } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 
 const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
@@ -203,25 +203,30 @@ const DriverDashboard = () => {
     const startSharing = async (showModal = true) => {
         if (!socket || !user) return;
 
-        // 1. Check Permissions & GPS Status
-        try {
-            const perm = await Geolocation.checkPermissions();
-            if (perm.location !== 'granted') {
-                const req = await Geolocation.requestPermissions();
-                if (req.location !== 'granted') {
-                    setErrorMsg("Location permission denied. Cannot start tracking.");
-                    return;
+            // 1. Check Permissions & GPS Status
+            try {
+                const perm = await Geolocation.checkPermissions();
+                if (perm.location !== 'granted') {
+                    const req = await Geolocation.requestPermissions();
+                    if (req.location !== 'granted') {
+                        setErrorMsg("Location permission denied. Cannot start tracking.");
+                        return;
+                    }
                 }
-            }
 
-            // Test if GPS is actually ON by trying a quick poll
-            await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000 });
-        } catch (err) {
-            console.error("GPS Check Failed:", err);
-            // On Android, if GPS is OFF, getCurrentPosition throws an error
-            if (showModal) setShowGpsModal(true);
-            return;
-        }
+                // Request Notification Permission for Android 13+ (for background notification)
+                if (Capacitor.getPlatform() === 'android') {
+                    const notifPerm = await Geolocation.requestPermissions(); // Re-using permission check for general safety
+                }
+
+                // Test if GPS is actually ON by trying a quick poll
+                await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000 });
+            } catch (err) {
+                console.error("GPS Check Failed:", err);
+                // On Android, if GPS is OFF, getCurrentPosition throws an error
+                if (showModal) setShowGpsModal(true);
+                return;
+            }
 
         setShowGpsModal(false); // Close modal if GPS check passes successfully
         
@@ -298,13 +303,14 @@ const DriverDashboard = () => {
             // FALLBACK TO HTTP IN BACKGROUND (When socket is suspended)
             try {
                 const VITE_API_URL = import.meta.env.VITE_API_URL || ''; 
-                await fetch(`${VITE_API_URL}/api/driver/location`, {
-                    method: 'POST',
+                // USE NATIVE HTTP BRIDGE TO BYPASS BACKGROUND THROTTLING
+                await CapacitorHttp.post({
+                    url: `${VITE_API_URL}/api/driver/location`,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    data: data
                 });
                 setSentCount(prev => prev + 1);
-                setLastSentTime(new Date().toLocaleTimeString() + " (HTTP)");
+                setLastSentTime(new Date().toLocaleTimeString() + " (Fixed)");
             } catch (err) {
                 console.error("HTTP Fallback Error:", err);
             }
