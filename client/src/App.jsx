@@ -6,51 +6,36 @@ import DriverDashboard from './DriverDashboard';
 import StudentDashboard from './StudentDashboard';
 import AdminDashboard from './AdminDashboard';
 import InstallPrompt from './InstallPrompt';
-import { ThemeProvider, useTheme } from './ThemeContext';
-import { Bus, User, ShieldCheck, Sun, Moon } from 'lucide-react';
 
 // Landing Page Component
 const Landing = () => {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 dark:from-gray-950 dark:via-gray-900 dark:to-black flex items-center justify-center p-4 transition-colors duration-500">
-      <div className="bg-white/10 dark:bg-black/20 backdrop-blur-xl p-10 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] w-full max-w-md text-center border border-white/20 relative overflow-hidden">
-        {/* Decorative background glow */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500 rounded-full blur-3xl opacity-20 dark:opacity-10"></div>
-        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-indigo-500 rounded-full blur-3xl opacity-20 dark:opacity-10"></div>
-        
-        <div className="bg-white/10 dark:bg-white/5 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/10 relative z-10 backdrop-blur-md">
-           <Bus size={44} className="text-white drop-shadow-md" />
-        </div>
-        
-        <h1 className="text-4xl font-extrabold mb-2 text-white tracking-tight relative z-10 drop-shadow-sm">VIT Shuttle</h1>
-        <p className="text-blue-200 dark:text-blue-400 mb-10 text-sm font-medium relative z-10">Real-time campus transit tracking</p>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
+        <h1 className="text-3xl font-bold mb-8 text-blue-900">VIT Shuttle Portal</h1>
 
-        <div className="space-y-4 relative z-10">
+        <div className="space-y-4">
           <button
             onClick={() => navigate('/driver')}
-            className="w-full group relative flex items-center justify-center gap-3 bg-white dark:bg-gray-800 text-blue-900 dark:text-blue-100 font-bold py-4 px-6 rounded-2xl hover:bg-blue-50 dark:hover:bg-gray-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 overflow-hidden"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition"
           >
-            <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <User size={20} className="relative z-10" />
-            <span className="relative z-10 tracking-wide">Login as Driver</span>
+            Login as Driver
           </button>
 
           <button
             onClick={() => navigate('/student')}
-            className="w-full group relative flex items-center justify-center gap-3 bg-blue-500/20 dark:bg-blue-500/10 text-white font-bold py-4 px-6 rounded-2xl hover:bg-blue-500/30 dark:hover:bg-blue-500/20 border border-blue-400/30 dark:border-blue-500/20 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 overflow-hidden"
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition"
           >
-            <div className="absolute inset-0 bg-blue-400/20 dark:bg-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <Bus size={20} className="relative z-10" />
-            <span className="relative z-10 tracking-wide">Track Shuttles</span>
+            View as Student
           </button>
 
-          <div className="pt-8">
+          <div className="pt-4 border-t border-gray-100">
             <button
               onClick={() => navigate('/admin')}
-              className="flex items-center justify-center gap-2 mx-auto text-xs font-semibold text-blue-300 dark:text-gray-500 hover:text-white dark:hover:text-blue-400 transition-colors uppercase tracking-wider"
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
-              <ShieldCheck size={16} /> Admin Control Panel
+              Admin Access
             </button>
           </div>
         </div>
@@ -59,23 +44,9 @@ const Landing = () => {
   );
 };
 
-const ThemeToggle = () => {
-    const { isDark, toggleTheme } = useTheme();
-    return (
-        <button
-            onClick={toggleTheme}
-            className="fixed top-4 right-4 z-[9999] p-3 rounded-full bg-white/20 dark:bg-black/40 backdrop-blur-md shadow-lg border border-gray-200/20 text-gray-800 dark:text-blue-300 hover:scale-110 transition-transform"
-            title="Toggle Dark Mode"
-        >
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
-    );
-};
-
 function App() {
   return (
-    <ThemeProvider>
-      <SocketProvider>
+    <SocketProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -87,17 +58,15 @@ function App() {
 
           {/* Global Back Button (hidden on landing) */}
           {window.location.pathname !== '/' && (
-            <a href="/" className="fixed bottom-4 left-4 bg-gray-800 dark:bg-blue-600 text-white px-4 py-2 rounded-full font-bold text-xs opacity-60 hover:opacity-100 transition-all z-[9999] shadow-lg border border-white/10">
-              HOME
+            <a href="/" className="fixed bottom-4 left-4 bg-gray-800 text-white px-3 py-1 rounded-full text-xs opacity-50 hover:opacity-100 z-[9999]">
+              Home
             </a>
           )}
           
           <InstallPrompt />
-          <ThemeToggle />
         </BrowserRouter>
       </AuthProvider>
     </SocketProvider>
-    </ThemeProvider>
   );
 }
 

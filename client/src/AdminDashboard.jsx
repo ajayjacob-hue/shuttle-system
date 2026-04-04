@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext'; // Auth
 import L from 'leaflet';
-import { Bus, Trash2, Save, StopCircle, Plus, Edit3, CheckCircle, XCircle, LogOut, UserCheck, ShieldCheck } from 'lucide-react';
+import { Bus, Trash2, Save, StopCircle, Plus, Edit3, CheckCircle, XCircle, LogOut, UserCheck } from 'lucide-react';
 
 // Reusing icon logic (could be refactored to shared utility)
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -275,83 +275,59 @@ const AdminDashboard = () => {
     // --- ADMIN LOGIN SCREEN ---
     if (!user || user.role !== 'admin') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex flex-col items-center justify-center p-4">
-                <div className="mb-8 text-center">
-                    <div className="bg-gray-800/80 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-gray-700 shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden backdrop-blur-md">
-                        <div className="absolute inset-0 bg-blue-500/10" />
-                        <ShieldCheck size={36} className="text-blue-400 relative z-10" />
-                    </div>
-                    <h1 className="text-3xl font-extrabold text-white tracking-widest">SYSTEM ADMIN</h1>
-                    <p className="text-blue-400/80 text-xs mt-2 tracking-[0.2em] uppercase font-bold">Restricted Access</p>
-                </div>
-                
-                <div className="bg-gray-800/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-700/50">
-                    {loginError && (
-                        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl mb-6 text-sm text-center font-medium flex items-center justify-center gap-2">
-                            <XCircle size={16} /> {loginError}
-                        </div>
-                    )}
-                    <form onSubmit={handleLogin} className="space-y-5">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Admin ID</label>
-                            <input
-                                type="text"
-                                className="w-full bg-gray-900/60 border border-gray-700 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-600 block shadow-inner"
-                                placeholder="..."
-                                value={loginEmail}
-                                onChange={e => setLoginEmail(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Passcode</label>
-                            <input
-                                type="password"
-                                className="w-full bg-gray-900/60 border border-gray-700 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-600 block shadow-inner"
-                                placeholder="..."
-                                value={loginPassword}
-                                onChange={e => setLoginPassword(e.target.value)}
-                            />
-                        </div>
-                        <div className="pt-4">
-                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] active:scale-[0.98] tracking-widest uppercase text-sm">
-                                Authenticate
-                            </button>
-                        </div>
+            <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
+                    <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 flex items-center justify-center gap-2">
+                        <UserCheck className="text-blue-600" /> Admin Access
+                    </h2>
+                    {loginError && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">{loginError}</div>}
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Username"
+                            className="w-full border p-2 rounded"
+                            value={loginEmail}
+                            onChange={e => setLoginEmail(e.target.value)}
+                        />
+                        <input
+                            type="password"
+                            placeholder="Password"
+                            className="w-full border p-2 rounded"
+                            value={loginPassword}
+                            onChange={e => setLoginPassword(e.target.value)}
+                        />
+                        <button type="submit" className="w-full bg-gray-800 text-white font-bold py-2 rounded hover:bg-gray-700">
+                            Enter Control Panel
+                        </button>
                     </form>
-                </div>
-
-                <div className="mt-12">
-                     <button onClick={() => window.location.href = '/'} className="text-xs font-semibold text-gray-500 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wider">
-                       ← Return to Public Portal
-                    </button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col md:flex-row h-screen w-full bg-gray-100 dark:bg-gray-950 transition-colors duration-500">
+        <div className="flex flex-col md:flex-row h-screen w-full bg-gray-100">
             {/* Sidebar Controls */}
-            <div className="w-full md:w-80 bg-white dark:bg-gray-900 shadow-xl z-20 flex flex-col h-[40vh] md:h-full overflow-hidden border-r border-gray-100 dark:border-white/5">
-                <div className="p-5 bg-gray-800 dark:bg-indigo-950 text-white shadow-md flex justify-between items-center">
-                    <h1 className="text-xl font-black flex items-center gap-2 tracking-tight">
-                        <Edit3 size={20} className="text-blue-400" /> CONTROL
+            <div className="w-full md:w-80 bg-white shadow-xl z-10 flex flex-col h-[40vh] md:h-full overflow-hidden">
+                <div className="p-4 bg-gray-800 text-white shadow-md flex justify-between items-center">
+                    <h1 className="text-xl font-bold flex items-center gap-2">
+                        <Edit3 size={20} /> Admin Panel
                     </h1>
-                    <button onClick={logout} className="text-gray-400 hover:text-white transition-colors"><LogOut size={18} /></button>
+                    <button onClick={logout} className="text-gray-400 hover:text-white"><LogOut size={18} /></button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
 
                     {/* Pending Approvals */}
-                    <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-2xl p-4">
-                        <h2 className="text-xs font-black text-yellow-800 dark:text-yellow-500 uppercase mb-3 flex items-center gap-2 tracking-widest">
-                            <UserCheck size={14} /> PENDING ({pendingDrivers.length})
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <h2 className="text-sm font-bold text-yellow-800 uppercase mb-2 flex items-center gap-2">
+                            <UserCheck size={14} /> Pending Approvals ({pendingDrivers.length})
                         </h2>
-                        {pendingDrivers.length === 0 ? <p className="text-[10px] text-gray-500 italic font-medium">Clear for now</p> : (
-                            <div className="space-y-3 mt-2">
+                        {pendingDrivers.length === 0 ? <p className="text-xs text-gray-500 italic">No pending requests</p> : (
+                            <div className="space-y-2 mt-2">
                                 {pendingDrivers.map(d => (
-                                    <div key={d._id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-yellow-100 dark:border-white/5 flex flex-col gap-2 shadow-sm">
-                                        <span className="text-[10px] font-black text-gray-700 dark:text-gray-300 truncate" title={d.email}>{d.email}</span>
+                                    <div key={d._id} className="bg-white p-2 rounded border flex flex-col gap-2 shadow-sm">
+                                        <span className="text-xs font-bold text-gray-700 truncate" title={d.email}>{d.email}</span>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => handleApprove(d._id)}
@@ -373,40 +349,40 @@ const AdminDashboard = () => {
                     </div>
 
                     {/* Approved Drivers Management */}
-                    <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-4">
-                        <h2 className="text-xs font-black text-blue-800 dark:text-blue-400 uppercase mb-3 flex items-center gap-2 tracking-widest">
-                            <Bus size={14} /> FLEET ({approvedDrivers.length})
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                        <h2 className="text-sm font-bold text-blue-800 uppercase mb-2 flex items-center gap-2">
+                            <Bus size={14} /> Approved Drivers ({approvedDrivers.length})
                         </h2>
-                        {approvedDrivers.length === 0 ? <p className="text-[10px] text-gray-500 italic font-medium">No units registered</p> : (
-                            <div className="space-y-3 mt-2">
+                        {approvedDrivers.length === 0 ? <p className="text-xs text-gray-500 italic">No approved drivers</p> : (
+                            <div className="space-y-2 mt-2">
                                 {approvedDrivers.map(d => {
                                     // Check if online
                                     const onlineSocketId = Object.keys(drivers).find(sId => drivers[sId].driverId === d.email);
 
                                     return (
-                                        <div key={d._id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-blue-100 dark:border-white/5 shadow-sm space-y-3">
+                                        <div key={d._id} className="bg-white p-2 rounded border border-blue-100 shadow-sm space-y-2">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-[10px] font-black text-gray-700 dark:text-gray-300 truncate w-3/4" title={d.email}>{d.email}</span>
-                                                <span className={`text-[8px] font-black uppercase rounded-full px-2 py-0.5 ${onlineSocketId ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-500' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-500'}`}>
+                                                <span className="text-[10px] font-bold text-gray-700 truncate w-3/4" title={d.email}>{d.email}</span>
+                                                <span className={`text-[8px] font-bold uppercase rounded-full px-1 ${onlineSocketId ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                                     {onlineSocketId ? 'Online' : 'Offline'}
                                                 </span>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-1">
                                                 {onlineSocketId && (
                                                     <button
                                                         onClick={() => handleForceStop(onlineSocketId)}
-                                                        className="flex-1 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-500 text-[9px] font-bold py-2 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-500/20 flex items-center justify-center gap-1 transition-colors"
+                                                        className="flex-1 bg-orange-100 text-orange-700 text-[9px] py-1 rounded hover:bg-orange-200 flex items-center justify-center gap-1"
                                                         title="Force Stop Location Sharing"
                                                     >
-                                                        <StopCircle size={10} /> STOP
+                                                        <StopCircle size={10} /> Force Stop
                                                     </button>
                                                 )}
                                                 <button
                                                     onClick={() => handleDeleteAccount(d._id)}
-                                                    className="flex-1 bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-500 text-[9px] font-bold py-2 rounded-lg hover:bg-red-200 dark:hover:bg-red-500/20 flex items-center justify-center gap-1 transition-colors"
+                                                    className="flex-1 bg-red-100 text-red-700 text-[9px] py-1 rounded hover:bg-red-200 flex items-center justify-center gap-1"
                                                     title="Delete Driver Account"
                                                 >
-                                                    <Trash2 size={10} /> DELETE
+                                                    <Trash2 size={10} /> Delete
                                                 </button>
                                             </div>
                                         </div>
@@ -417,19 +393,19 @@ const AdminDashboard = () => {
                     </div>
 
                     {/* Active Shuttles */}
-                    <div className="bg-gray-50 dark:bg-gray-800/30 border border-gray-100 dark:border-white/5 rounded-2xl p-4">
-                        <h2 className="text-xs font-black text-gray-500 uppercase mb-3 tracking-widest">LIVE TRACKS ({Object.keys(drivers).length})</h2>
-                        {Object.keys(drivers).length === 0 ? <p className="text-[10px] text-gray-500 italic font-medium">None active</p> : (
+                    <div>
+                        <h2 className="text-sm font-bold text-gray-500 uppercase mb-2">Active Shuttles ({Object.keys(drivers).length})</h2>
+                        {Object.keys(drivers).length === 0 ? <p className="text-sm text-gray-400 italic">No active drivers</p> : (
                             <div className="space-y-2">
                                 {Object.values(drivers).map(d => (
-                                    <div key={d.driverId} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm">
+                                    <div key={d.driverId} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200">
                                         <div>
-                                            <p className="font-black text-xs text-gray-800 dark:text-gray-200 uppercase">SHUTTLE {d.shuttleNumber || d.driverId.slice(-3)}</p>
-                                            <p className="text-[10px] text-green-600 font-bold uppercase">Streaming</p>
+                                            <p className="font-bold text-sm">Shuttle {d.shuttleNumber || d.driverId.slice(-3)}</p>
+                                            <p className="text-xs text-green-600">Online</p>
                                         </div>
                                         <button
                                             onClick={() => handleForceStop(d.socketId)}
-                                            className="text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-2 rounded-full transition-colors"
+                                            className="text-red-500 hover:bg-red-50 p-2 rounded-full"
                                             title="Force Stop"
                                         >
                                             <StopCircle size={18} />

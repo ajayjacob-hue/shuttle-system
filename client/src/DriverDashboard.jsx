@@ -346,55 +346,35 @@ const DriverDashboard = () => {
     // --- RENDER AUTH SCREEN ---
     if (!user || user.role !== 'driver') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-900 to-blue-800 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950 flex flex-col items-center justify-center p-4 transition-colors duration-500">
-                <div className="mb-8 text-center">
-                    <div className="bg-white/10 backdrop-blur-md w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/20 shadow-2xl">
-                        <User size={40} className="text-white" />
-                    </div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">DRIVER PORTAL</h1>
-                    <p className="text-blue-200 text-xs mt-1 font-bold uppercase tracking-[0.3em]">Access Authorized Only</p>
-                </div>
-
-                <div className="bg-white/10 dark:bg-black/20 backdrop-blur-2xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] w-full max-w-md border border-white/20 relative overflow-hidden">
-                    {/* Decorative glow inside */}
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-400/20 rounded-full blur-3xl"></div>
-
-                    <h2 className="text-2xl font-bold mb-6 text-center text-white relative z-10">
-                        {isLoginMode ? 'Welcome Back' : 'Join the Fleet'}
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+                    <h2 className="text-2xl font-bold mb-6 text-center text-blue-900">
+                        {isLoginMode ? 'Driver Login' : 'Driver Signup'}
                     </h2>
 
                     {authError && (
-                        <div className={`p-4 rounded-2xl mb-6 text-sm font-medium flex items-center gap-2 border animate-in fade-in slide-in-from-top-2 duration-300 relative z-10 ${
-                            authError.includes('wait') 
-                            ? 'bg-green-500/10 border-green-500/30 text-green-400' 
-                            : 'bg-red-500/10 border-red-500/30 text-red-400'
-                        }`}>
-                            {authError.includes('wait') ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+                        <div className={`p-3 rounded mb-4 text-sm ${authError.includes('wait') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                             {authError}
                         </div>
                     )}
 
-                    <form onSubmit={handleAuthSubmit} className="space-y-5 relative z-10">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-blue-100/70 uppercase tracking-wider ml-1">Fleet Email</label>
-                            <div className="relative group">
-                                <input
-                                    type="email"
-                                    required
-                                    className="w-full bg-white/5 border border-white/10 text-white px-4 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 transition-all placeholder-white/20"
-                                    placeholder="driver@vit.ac.in"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                />
-                            </div>
+                    <form onSubmit={handleAuthSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700">Email</label>
+                            <input
+                                type="email"
+                                required
+                                className="w-full border p-2 rounded"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                            />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-blue-100/70 uppercase tracking-wider ml-1">Security Key</label>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700">Password</label>
                             <input
                                 type="password"
                                 required
-                                className="w-full bg-white/5 border border-white/10 text-white px-4 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 transition-all placeholder-white/20"
-                                placeholder="••••••••"
+                                className="w-full border p-2 rounded"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                             />
@@ -402,35 +382,29 @@ const DriverDashboard = () => {
                         <button
                             type="submit"
                             disabled={authLoading}
-                            className="w-full group relative flex items-center justify-center gap-2 bg-white text-blue-900 font-black py-4 rounded-2xl hover:bg-blue-50 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-50 mt-4"
+                            className="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 disabled:opacity-50"
                         >
-                            {authLoading ? (
-                                <RefreshCw className="animate-spin" size={20} />
-                            ) : (
-                                <>
-                                    <span>{isLoginMode ? 'INITIALIZE SESSION' : 'SUBMIT APPLICATION'}</span>
-                                </>
-                            )}
+                            {authLoading ? 'Processing...' : (isLoginMode ? 'Login' : 'Sign Up')}
                         </button>
                     </form>
 
-                    <div className="mt-8 text-center relative z-10">
+                    <div className="mt-4 text-center">
                         <button
                             type="button"
                             onClick={() => { setIsLoginMode(!isLoginMode); setAuthError(''); }}
-                            className="text-blue-100/60 hover:text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 mx-auto"
+                            className="text-blue-500 hover:underline text-sm"
                         >
-                            {isLoginMode ? "Don't have an account? Sign Up" : "Already registered? Sign In"}
+                            {isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Login'}
                         </button>
                     </div>
                     
-                    <div className="mt-6 pt-6 border-t border-white/10 text-center relative z-10">
+                    <div className="mt-6 pt-4 border-t border-gray-100 text-center">
                         <button
                             type="button"
                             onClick={() => window.location.href = '/'}
-                            className="text-white/40 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
+                            className="text-gray-400 hover:text-gray-600 underline text-sm"
                         >
-                            ← Abort and Return
+                            Back to Home
                         </button>
                     </div>
                 </div>
@@ -440,112 +414,88 @@ const DriverDashboard = () => {
 
     // --- RENDER DASHBOARD (LOGGED IN) ---
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center p-4 transition-colors duration-500">
-            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-                    <div className="relative z-10">
-                        <h2 className="text-2xl font-black tracking-tight">{shuttleNumber ? `Shuttle ${shuttleNumber}` : 'Driver Module'}</h2>
-                        <p className="text-xs text-blue-100/80 font-medium">{user.email}</p>
+                <div className="bg-blue-600 p-6 text-white shadow-md flex justify-between items-center">
+                    <div>
+                        <h2 className="text-xl font-bold opacity-90">{shuttleNumber ? `Shuttle ${shuttleNumber}` : 'Driver Portal'}</h2>
+                        <p className="text-xs text-blue-200">{user.email}</p>
                     </div>
 
-                    <button onClick={logout} className="relative z-10 p-3 bg-white/20 backdrop-blur-md rounded-2xl hover:bg-white/30 transition-colors shadow-lg group">
-                        <LogOut size={22} className="group-hover:translate-x-1 transition-transform" />
+                    <button onClick={logout} className="p-2 bg-blue-700 rounded hover:bg-blue-800">
+                        <LogOut size={20} />
                     </button>
                 </div>
 
                 <div className="p-8 flex flex-col space-y-8">
                     {/* Status Indicator */}
-                    <div className="flex flex-col items-center justify-center py-6">
-                        <div className={`w-40 h-40 rounded-[3rem] flex items-center justify-center mb-6 transition-all duration-700 relative ${
-                             status === 'ONLINE' ? 'bg-green-500/10 text-green-500 ring-[12px] ring-green-500/5 shadow-[0_0_40px_rgba(34,197,94,0.2)]' :
-                             status === 'OUT_OF_BOUNDS' ? 'bg-red-500/10 text-red-500 ring-[12px] ring-red-500/5' :
-                             'bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600 ring-[12px] ring-gray-100/50 dark:ring-gray-800/50'
-                        }`}>
-                            {status === 'ONLINE' ? (
-                                <>
-                                    <MapPin className="w-16 h-16 animate-bounce" />
-                                    <span className="absolute inset-0 rounded-[3rem] border-4 border-green-500 animate-ping opacity-20"></span>
-                                </>
-                            ) :
-                                status === 'OUT_OF_BOUNDS' ? <AlertTriangle className="w-16 h-16" /> :
-                                    <Power className="w-16 h-16" />}
+                    <div className="flex flex-col items-center justify-center py-4">
+                        <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-4 transition-all duration-700 ${status === 'ONLINE' ? 'bg-green-50 text-green-500 ring-8 ring-green-50/50 shadow-green-200 shadow-lg' :
+                            status === 'OUT_OF_BOUNDS' ? 'bg-red-50 text-red-500 ring-8 ring-red-50/50' :
+                                'bg-gray-50 text-gray-300 ring-8 ring-gray-100'
+                            }`}>
+                            {status === 'ONLINE' ? <MapPin className="w-14 h-14 animate-bounce" /> :
+                                status === 'OUT_OF_BOUNDS' ? <AlertTriangle className="w-14 h-14" /> :
+                                    <Power className="w-14 h-14" />}
                         </div>
-                        <h3 className={`text-3xl font-black tracking-tighter uppercase transition-colors ${
-                            status === 'ONLINE' ? 'text-green-500' :
+                        <h3 className={`text-2xl font-bold tracking-widest uppercase transition-colors ${status === 'ONLINE' ? 'text-green-600' :
                             status === 'OUT_OF_BOUNDS' ? 'text-red-500' :
-                            'text-gray-300 dark:text-gray-700'
-                        }`}>
+                                'text-gray-400'
+                            }`}>
                             {status === 'OUT OF ZONE' ? 'OUT OF ZONE' : status}
                         </h3>
-                        <div className="mt-3 flex flex-col items-center">
+                        <p className="text-sm font-medium text-gray-400 mt-2 h-6 flex items-center gap-2">
                             {status === 'ONLINE' ? (
-                                <div className="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-full">
-                                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-                                    <span className="text-sm font-black text-gray-700 dark:text-gray-300">{elapsed}</span>
-                                    {sentCount > 0 && <span className="text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded-full font-bold">SENT {sentCount}</span>}
-                                </div>
-                            ) : (
-                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Protocol Stood Down</p>
-                            )}
-                        </div>
+                                <>
+                                    <span>Live: {elapsed}</span>
+                                    {sentCount > 0 && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">Sent: {sentCount}</span>}
+                                </>
+                            ) : 'Ready to start'}
+                        </p>
                     </div>
 
                     {/* Error Box */}
                     {errorMsg && (
-                        <div className="bg-red-500/10 border-l-4 border-red-500 p-5 rounded-r-2xl animate-shake">
-                            <p className="text-sm text-red-500 font-black flex items-center gap-2">
-                                <AlertTriangle size={16} /> {errorMsg}
-                            </p>
+                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r animate-pulse">
+                            <p className="text-sm text-red-700 font-bold">{errorMsg}</p>
                         </div>
                     )}
 
                     {/* Main Action Button */}
                     <button
                         onClick={isSharing ? handleStopSharing : startSharing}
-                        className={`w-full py-6 rounded-3xl font-black text-xl shadow-[0_15px_30px_rgba(0,0,0,0.1)] transform transition-all active:scale-95 flex items-center justify-center gap-4 ${isSharing
-                            ? 'bg-white dark:bg-gray-900 border-4 border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/5'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/25'
+                        className={`w-full py-6 rounded-2xl font-bold text-xl shadow-lg transform transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-3 ${isSharing
+                            ? 'bg-white border-4 border-red-500 text-red-500 hover:bg-red-50 shadow-red-100'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl shadow-blue-200'
                             }`}
                     >
                         {isSharing ? (
                             <>
-                                <StopCircle className="animate-pulse" />
-                                STOP TRANSMISSION
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                                STOP SHARING
                             </>
-                        ) : (
-                            <>
-                                <Power />
-                                BEGIN MISSION
-                            </>
-                        )}
+                        ) : 'START SHARING'}
                     </button>
 
-                    {/* Debug Terminal */}
-                    <div className="bg-gray-950 text-emerald-400 p-5 font-mono text-[10px] w-full overflow-hidden rounded-2xl border border-emerald-500/20 shadow-inner relative">
-                        <div className="absolute top-2 right-3 flex gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-500/50"></div>
-                            <div className="w-1.5 h-1.5 rounded-full bg-yellow-500/50"></div>
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500/50"></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 opacity-80">
-                            <p className="flex justify-between"><span>LINK:</span> <span>{socket?.connected ? 'STABLE' : 'DROPPED'}</span></p>
-                            <p className="flex justify-between"><span>POWER:</span> <span>{wakeLock ? 'BOOST' : 'CRUISE'}</span></p>
-                            <p className="col-span-2 border-t border-emerald-500/10 pt-1 mt-1 truncate">
-                                GPS COORDS: {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'ACQUIRING...'}
-                            </p>
-                            <p className="col-span-2 flex justify-between">
-                                <span>TIMESTAMP:</span> <span>{lastSentTime || '---'}</span>
-                            </p>
-                            <p className="col-span-2 opacity-40 text-[8px] tracking-tighter">DRIVER_ID: {user.email}</p>
+                    {/* Debug Info Overlay */}
+                    <div className="bg-black/90 text-green-400 p-4 font-mono text-[10px] w-full overflow-hidden rounded-xl border border-green-900/50 shadow-inner">
+                        <div className="grid grid-cols-2 gap-2">
+                            <p>STATUS: {socket?.connected ? <span className="text-green-400">CONN</span> : <span className="text-red-500">DISC</span>}</p>
+                            <p>MODE: {wakeLock ? '⚡ AWAKE' : '💤 NORMAL'}</p>
+                            <p className="col-span-2 truncate">GPS: {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'WAITING...'}</p>
+                            <p>LAST SENT: {lastSentTime || 'NEVER'}</p>
+                            <p>ID: {user.email}</p>
                         </div>
                     </div>
                 </div>
             </div>
-            {/* Footer */}
-            <p className="text-center text-[10px] font-black text-gray-400 dark:text-gray-600 mt-6 uppercase tracking-[0.4em]">
-                VIT Fleet Command • v2.5.0-Final
+            {/* Footer Info */}
+            <p className="text-center text-xs text-gray-300 mt-4">
+                VIT Shuttle System v2.3 (Auth Enabled)
             </p>
 
             {/* Hidden Video element for audio/media playback keep-alive */}
