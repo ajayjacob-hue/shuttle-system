@@ -300,6 +300,16 @@ const AdminDashboard = () => {
                             Enter Control Panel
                         </button>
                     </form>
+
+                    <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+                        <button
+                            type="button"
+                            onClick={() => window.location.href = '/'}
+                            className="text-gray-400 hover:text-gray-600 underline text-sm"
+                        >
+                            Back to Home
+                        </button>
+                    </div>
                 </div>
             </div>
         );

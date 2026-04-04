@@ -6,7 +6,9 @@ import { useAuth } from './AuthContext'; // Import Auth
 import { calculateETA } from './utils/eta';
 import L from 'leaflet';
 
-import { Bus, Navigation, Crosshair, RefreshCw, LogOut } from 'lucide-react';
+import { Bus, Navigation, Crosshair, RefreshCw, LogOut, AlertTriangle } from 'lucide-react';
+import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 // Fix Leaflet's default icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -72,6 +74,7 @@ const StudentDashboard = () => {
     const [userLoc, setUserLoc] = useState(null);
     const [etas, setEtas] = useState({}); // Keyed by driverId
     const [routes, setRoutes] = useState([]);
+    const [showGpsModal, setShowGpsModal] = useState(false);
     const focusTimeoutRef = useRef(null);
 
     // Update 'now' every second to force UI refresh for "seconds ago" timer
@@ -179,18 +182,35 @@ const StudentDashboard = () => {
 
     // Get User Location on Mount
     useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
+        const fetchLocation = async () => {
+            if (Capacitor.isNativePlatform()) {
+                try {
+                    const perm = await Geolocation.checkPermissions();
+                    if (perm.location !== 'granted') {
+                        await Geolocation.requestPermissions();
+                    }
+                    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
                     const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     setUserLoc(loc);
-                    // Initial center on user
                     setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
-                },
-                (err) => console.error("Location access denied", err),
-                { enableHighAccuracy: true }
-            );
-        }
+                } catch (err) {
+                    console.error("Location Error:", err);
+                    // This error typically happens if GPS is OFF on Android
+                    setShowGpsModal(true);
+                }
+            } else if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        setUserLoc(loc);
+                        setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
+                    },
+                    (err) => console.error("Location access denied", err),
+                    { enableHighAccuracy: true }
+                );
+            }
+        };
+        fetchLocation();
     }, []);
 
     const activeBuses = Object.values(drivers);
@@ -371,6 +391,27 @@ const StudentDashboard = () => {
                     )}
                 </div>
             </div>
+
+            {/* GPS DISABLED MODAL */}
+            {showGpsModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-6">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <AlertTriangle className="text-red-600 w-10 h-10" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900">Location Turned Off</h3>
+                        <p className="text-gray-500 text-sm">
+                            Your device's GPS (Location Services) is turned off. We need it to find your position on the map.
+                        </p>
+                        <button 
+                            onClick={() => setShowGpsModal(false)}
+                            className="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all"
+                        >
+                            I've Turned It On
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
