@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
@@ -180,38 +180,41 @@ const StudentDashboard = () => {
         return () => clearTimeout(timer);
     }, [drivers, userLoc]);
 
-    // Get User Location on Mount
-    useEffect(() => {
-        const fetchLocation = async () => {
-            if (Capacitor.isNativePlatform()) {
-                try {
-                    const perm = await Geolocation.checkPermissions();
-                    if (perm.location !== 'granted') {
-                        await Geolocation.requestPermissions();
-                    }
-                    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+    // Get User Location logic
+    const fetchLocation = useCallback(async () => {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const perm = await Geolocation.checkPermissions();
+                if (perm.location !== 'granted') {
+                    const req = await Geolocation.requestPermissions();
+                    if (req.location !== 'granted') return;
+                }
+                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                setUserLoc(loc);
+                setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
+                setShowGpsModal(false); // Close if successful
+            } catch (err) {
+                console.error("Location Error:", err);
+                // This error typically happens if GPS is OFF on Android
+                setShowGpsModal(true);
+            }
+        } else if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
                     const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     setUserLoc(loc);
                     setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
-                } catch (err) {
-                    console.error("Location Error:", err);
-                    // This error typically happens if GPS is OFF on Android
-                    setShowGpsModal(true);
-                }
-            } else if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        setUserLoc(loc);
-                        setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });
-                    },
-                    (err) => console.error("Location access denied", err),
-                    { enableHighAccuracy: true }
-                );
-            }
-        };
-        fetchLocation();
+                },
+                (err) => console.error("Location access denied", err),
+                { enableHighAccuracy: true }
+            );
+        }
     }, []);
+
+    useEffect(() => {
+        fetchLocation();
+    }, [fetchLocation]);
 
     const activeBuses = Object.values(drivers);
 
@@ -404,7 +407,7 @@ const StudentDashboard = () => {
                             Your device's GPS (Location Services) is turned off. We need it to find your position on the map.
                         </p>
                         <button 
-                            onClick={() => setShowGpsModal(false)}
+                            onClick={fetchLocation}
                             className="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all"
                         >
                             I've Turned It On

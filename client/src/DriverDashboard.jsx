@@ -222,6 +222,8 @@ const DriverDashboard = () => {
             setShowGpsModal(true);
             return;
         }
+
+        setShowGpsModal(false); // Close modal if GPS check passes sucessfully
         
         if ('Notification' in window && Notification.permission !== 'granted') {
             await Notification.requestPermission();
@@ -563,7 +565,7 @@ const DriverDashboard = () => {
                             Your device's GPS (Location Services) is turned off. We need it to track the shuttle position.
                         </p>
                         <button 
-                            onClick={() => setShowGpsModal(false)}
+                            onClick={startSharing}
                             className="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all"
                         >
                             I've Turned It On
