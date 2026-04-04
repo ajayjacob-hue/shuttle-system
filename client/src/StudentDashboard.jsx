@@ -276,7 +276,7 @@ const StudentDashboard = () => {
                         >
                             <Popup direction="top" offset={[0, -20]} opacity={1}>
                                 <div className="font-sans text-center">
-                                    <strong className="text-blue-900 block mb-1">Shuttle {driver.driverId.slice(-3)}</strong>
+                                    <strong className="text-blue-900 block mb-1">Shuttle {driver.shuttleNumber || driver.driverId.slice(-3)}</strong>
                                     <button
                                         onClick={() => handleFocusShuttle(driver)}
                                         className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded mt-1 hover:bg-blue-200"
@@ -337,7 +337,7 @@ const StudentDashboard = () => {
                                     <div className="flex items-center gap-3">
                                         <div className={`w-3 h-3 rounded-full ${selectedBus === bus.driverId ? 'bg-white' : 'bg-green-500'}`}></div>
                                         <div>
-                                            <span className="font-bold text-lg block leading-none">Shuttle {bus.driverId.slice(-3)}</span>
+                                            <span className="font-bold text-lg block leading-none">Shuttle {bus.shuttleNumber || bus.driverId.slice(-3)}</span>
                                             {etas[bus.driverId] && (
                                                 <span className={`text-xs font-bold ${selectedBus === bus.driverId ? 'text-blue-100' : 'text-blue-600'}`}>
                                                     ETA: {etas[bus.driverId]}

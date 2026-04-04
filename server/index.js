@@ -60,7 +60,19 @@ const VIT_VELLORE_CENTER = point([79.1559, 12.9692]); // [lng, lat] for turf
 const GEOFENCE_RADIUS_KM = 5000;
 
 // State
-const activeDrivers = new Map(); // Stores socket.id -> { driverId, lat, lng, lastUpdate }
+const activeDrivers = new Map(); // Stores socket.id -> { driverId, shuttleNumber, lat, lng, lastUpdate }
+
+function getNextShuttleNumber() {
+  const usedNumbers = new Set();
+  for (const driver of activeDrivers.values()) {
+    if (driver.shuttleNumber) usedNumbers.add(driver.shuttleNumber);
+  }
+  let num = 1;
+  while (usedNumbers.has(num)) {
+    num++;
+  }
+  return num;
+}
 
 // Initial Data Helper
 const getRoutes = async () => {
@@ -90,6 +102,7 @@ io.on('connection', async (socket) => {
           driversList[key] = {
             socketId: key,
             driverId: val.driverId,
+            shuttleNumber: val.shuttleNumber,
             lat: val.lat,
             lng: val.lng,
             lastUpdate: val.lastUpdate
@@ -109,6 +122,7 @@ io.on('connection', async (socket) => {
           driversList[key] = {
             socketId: key,
             driverId: val.driverId,
+            shuttleNumber: val.shuttleNumber,
             lat: val.lat,
             lng: val.lng,
             lastUpdate: val.lastUpdate
@@ -171,12 +185,17 @@ io.on('connection', async (socket) => {
 
     // DEDUPLICATION: Check if this driverId is already active on ANOTHER socket
     // If so, remove the old one to prevent ghosts
+    let existingShuttleNumber;
     for (const [sId, driver] of activeDrivers.entries()) {
-      if (driver.driverId === data.driverId && sId !== socket.id) {
-        console.log(`Duplicate driver ${data.driverId} detected. Removing old socket ${sId}`);
-        activeDrivers.delete(sId);
-        // Tell students to remove the old ghost immediately
-        io.to('student').to('admin').emit('driver_offline', { socketId: sId });
+      if (driver.driverId === data.driverId) {
+        if (sId !== socket.id) {
+          console.log(`Duplicate driver ${data.driverId} detected. Removing old socket ${sId}`);
+          activeDrivers.delete(sId);
+          // Tell students to remove the old ghost immediately
+          io.to('student').to('admin').emit('driver_offline', { socketId: sId });
+        } else {
+          existingShuttleNumber = driver.shuttleNumber;
+        }
       }
     }
 
@@ -196,15 +215,21 @@ io.on('connection', async (socket) => {
     }
 
     // Inside Geofence -> Broadcast
+    const assignedShuttleNumber = existingShuttleNumber || getNextShuttleNumber();
+    
     const driverInfo = {
       socketId: socket.id,
       driverId: data.driverId,
+      shuttleNumber: assignedShuttleNumber,
       lat: data.lat,
       lng: data.lng,
       lastUpdate: Date.now()
     };
 
     activeDrivers.set(socket.id, driverInfo);
+
+    // Send the shuttle number specific to this driver
+    socket.emit('shuttle_info', { shuttleNumber: assignedShuttleNumber });
 
     // Broadcast to students AND admins
     io.to('student').to('admin').emit('shuttle_moved', driverInfo);

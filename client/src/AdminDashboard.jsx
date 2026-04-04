@@ -400,7 +400,7 @@ const AdminDashboard = () => {
                                 {Object.values(drivers).map(d => (
                                     <div key={d.driverId} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200">
                                         <div>
-                                            <p className="font-bold text-sm">{d.driverId}</p>
+                                            <p className="font-bold text-sm">Shuttle {d.shuttleNumber || d.driverId.slice(-3)}</p>
                                             <p className="text-xs text-green-600">Online</p>
                                         </div>
                                         <button
@@ -536,7 +536,7 @@ const AdminDashboard = () => {
                     {/* Active Shuttles */}
                     {Object.values(drivers).map(d => (
                         <Marker key={d.driverId} position={[d.lat, d.lng]} icon={createBusIcon()}>
-                            <Popup>{d.driverId}</Popup>
+                            <Popup>Shuttle {d.shuttleNumber || d.driverId.slice(-3)}</Popup>
                         </Marker>
                     ))}
                 </MapContainer>

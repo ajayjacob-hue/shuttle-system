@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 import { MapPin, AlertTriangle, Power, LogOut } from 'lucide-react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
 
 const DriverDashboard = () => {
     const { user, login, logout } = useAuth();
@@ -20,6 +23,7 @@ const DriverDashboard = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [startTime, setStartTime] = useState(null);
     const [lastSentTime, setLastSentTime] = useState(null);
+    const [shuttleNumber, setShuttleNumber] = useState(null);
 
     // We use a ref for location to access it inside the worker callback without closure stale state
     const locationRef = useRef(null);
@@ -66,9 +70,14 @@ const DriverDashboard = () => {
             }
         });
 
+        socket.on('shuttle_info', (data) => {
+            setShuttleNumber(data.shuttleNumber);
+        });
+
         return () => {
             socket.off('force_stop_sharing');
             socket.off('connect');
+            socket.off('shuttle_info');
         };
     }, [socket, isSharing, user]);
 
@@ -111,16 +120,18 @@ const DriverDashboard = () => {
             socket.emit('ping_keepalive');
         }
 
-        // 2. WAKE GPS: Try to get a fresh position
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                handleLocationUpdate(pos.coords);
-            },
-            (err) => {
-                console.log("Worker Tick GPS Poll failed/throttled:", err.code);
-            },
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
-        );
+        // 2. WAKE GPS: Try to get a fresh position (only needed for web, Capacitor watcher takes care of this)
+        if (!Capacitor.isNativePlatform()) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    handleLocationUpdate(pos.coords);
+                },
+                (err) => {
+                    console.log("Worker Tick GPS Poll failed/throttled:", err.code);
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+            );
+        }
     };
 
 
@@ -206,22 +217,48 @@ const DriverDashboard = () => {
             audioRef.current.play().catch(console.error);
         }
 
-        if (!watchId) {
-            const id = navigator.geolocation.watchPosition(
-                (pos) => {
-                    handleLocationUpdate(pos.coords);
-                },
-                (err) => {
-                    console.error("GPS Watch Error:", err);
-                    setErrorMsg("GPS Error: " + err.message);
-                },
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 5000
-                }
-            );
-            setWatchId(id);
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const id = await BackgroundGeolocation.addWatcher(
+                    {
+                        backgroundMessage: "Your live location is being transmitted in the background.",
+                        backgroundTitle: "Shuttle Live Tracking",
+                        requestPermissions: true,
+                        stale: false,
+                        distanceFilter: 0
+                    },
+                    (pos, err) => {
+                        if (err) {
+                            console.error("Capacitor GPS Watch Error:", err);
+                            setErrorMsg("GPS Error: " + err.message);
+                        } else if (pos) {
+                            handleLocationUpdate({ latitude: pos.latitude, longitude: pos.longitude });
+                        }
+                    }
+                );
+                setWatchId(id);
+            } catch (err) {
+                console.error("Failed to start Capacitor watch:", err);
+                setErrorMsg("Capacitor GPS Error: " + err.message);
+            }
+        } else {
+            if (!watchId) {
+                const id = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        handleLocationUpdate(pos.coords);
+                    },
+                    (err) => {
+                        console.error("GPS Watch Error:", err);
+                        setErrorMsg("GPS Error: " + err.message);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+                setWatchId(id);
+            }
         }
     };
 
@@ -252,11 +289,18 @@ const DriverDashboard = () => {
     };
 
     const stopSharing = () => {
-        if (watchId) navigator.geolocation.clearWatch(watchId);
+        if (watchId) {
+            if (Capacitor.isNativePlatform()) {
+                BackgroundGeolocation.removeWatcher({ id: watchId });
+            } else {
+                navigator.geolocation.clearWatch(watchId);
+            }
+        }
         if (socket) socket.emit('stop_sharing');
         setWatchId(null);
         setIsSharing(false);
         setStartTime(null);
+        setShuttleNumber(null);
         if (status !== 'OUT_OF_BOUNDS') setStatus('OFFLINE');
         clearPersistentNotification();
     };
@@ -353,6 +397,16 @@ const DriverDashboard = () => {
                             {isLoginMode ? 'Need an account? Sign Up' : 'Already have an account? Login'}
                         </button>
                     </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+                        <button
+                            type="button"
+                            onClick={() => window.location.href = '/'}
+                            className="text-gray-400 hover:text-gray-600 underline text-sm"
+                        >
+                            Back to Home
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -365,7 +419,7 @@ const DriverDashboard = () => {
                 {/* Header */}
                 <div className="bg-blue-600 p-6 text-white shadow-md flex justify-between items-center">
                     <div>
-                        <h2 className="text-xl font-bold opacity-90">Driver Portal</h2>
+                        <h2 className="text-xl font-bold opacity-90">{shuttleNumber ? `Shuttle ${shuttleNumber}` : 'Driver Portal'}</h2>
                         <p className="text-xs text-blue-200">{user.email}</p>
                     </div>
 

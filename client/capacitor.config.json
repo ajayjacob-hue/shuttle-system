@@ -1,0 +1,11 @@
+{
+  "appId": "com.shuttlesystem.app",
+  "appName": "Shuttle System",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  },
+  "android": {
+    "useLegacyBridge": true
+  }
+}
