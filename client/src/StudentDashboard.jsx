@@ -224,7 +224,7 @@ const StudentDashboard = () => {
     };
 
     return (
-        <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 overflow-hidden relative">
+        <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-gray-100 dark:bg-gray-950 overflow-hidden relative transition-colors duration-500">
 
             {/* 1. MAP CONTAINER */}
             <div className="flex-1 relative order-1 md:order-2 h-full w-full z-0">
@@ -239,7 +239,7 @@ const StudentDashboard = () => {
                         {/* Recenter on User */}
                         <button
                             onClick={handleFocusUser}
-                            className="bg-white p-3 rounded-full shadow-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                            className="bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg text-gray-700 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all border border-transparent dark:border-white/10"
                             title="Center on Me"
                         >
                             <Crosshair size={24} />
@@ -300,44 +300,45 @@ const StudentDashboard = () => {
             {/* 2. INFO PANEL / SIDEBAR */}
             <div
                 className={`
-                    bg-white shadow-2xl z-20 flex flex-col transition-all duration-300
+                    bg-white dark:bg-gray-900 shadow-2xl z-20 flex flex-col transition-all duration-300
                     w-full h-[45vh] rounded-t-3xl order-2 
                     md:w-96 md:h-full md:rounded-none md:order-1 md:static
+                    border-t md:border-t-0 md:border-r border-gray-100 dark:border-white/5
                 `}
             >
                 {/* Header */}
-                <div className="p-5 border-b bg-white md:bg-blue-900 md:text-white rounded-t-3xl md:rounded-none flex justify-between items-center sticky top-0 z-10">
+                <div className="p-5 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-gray-900 md:bg-blue-900 md:dark:bg-indigo-950 md:text-white rounded-t-3xl md:rounded-none flex justify-between items-center sticky top-0 z-10 transition-colors">
                     <div>
-                        <h1 className="font-bold text-lg flex items-center gap-2 text-gray-800 md:text-white">
-                            <Bus size={20} className="text-blue-600 md:text-white" /> VIT Shuttle
+                        <h1 className="font-bold text-lg flex items-center gap-2 text-gray-800 dark:text-gray-100 md:text-white">
+                            <Bus size={20} className="text-blue-600 dark:text-blue-400 md:text-white" /> VIT Shuttle
                         </h1>
-                        <p className="text-xs text-gray-500 md:text-blue-200 mt-1">Live Tracking System v2.3</p>
-                        <p className={`text-[10px] uppercase font-bold mt-1 ${socket?.connected ? 'text-green-600 md:text-green-300' : 'text-red-500 animate-pulse'}`}>
-                            {socket?.connected ? '● Server Connected' : '○ Connecting...'}
+                        <p className="text-xs text-gray-400 dark:text-gray-500 md:text-blue-200 mt-1">Live Tracking System v2.3</p>
+                        <p className={`text-[10px] uppercase font-black mt-1.5 tracking-wider ${socket?.connected ? 'text-green-600 dark:text-green-500 md:text-green-300' : 'text-red-500 animate-pulse'}`}>
+                            {socket?.connected ? '● Server Active' : '○ Offline'}
                         </p>
                     </div>
 
-                    <button onClick={logout} className="p-2 ml-2 bg-gray-100 text-gray-700 md:bg-blue-800 md:text-white rounded hover:bg-gray-200 md:hover:bg-blue-700">
+                    <button onClick={logout} className="p-2 ml-2 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 md:bg-blue-800 md:dark:bg-blue-900/50 md:text-white rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 md:hover:bg-blue-700 transition-all border border-gray-200 dark:border-white/5">
                         <LogOut size={16} />
                     </button>
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 md:bg-white">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50 dark:bg-gray-900 mt-1">
                     {activeBuses.length === 0 ? (
-                        <div className="text-center py-10 text-gray-400">
-                            <Bus className="mx-auto mb-2 opacity-50" size={32} />
-                            <p>No shuttles active</p>
-                            <p className="text-xs mt-2">Waiting for drivers...</p>
+                        <div className="text-center py-20 text-gray-400 dark:text-gray-600">
+                            <Bus className="mx-auto mb-4 opacity-20" size={64} />
+                            <p className="font-bold tracking-tight">No shuttles active</p>
+                            <p className="text-xs mt-2 font-medium">Waiting for fleet deployment...</p>
                         </div>
                     ) : (
                         activeBuses.map(bus => (
                             <button
                                 key={bus.driverId}
                                 onClick={() => handleFocusShuttle(bus)}
-                                className={`w-full text-left p-4 rounded-xl border transition-all shadow-sm ${selectedBus === bus.driverId
-                                    ? 'bg-blue-600 text-white border-blue-600 ring-4 ring-blue-100'
-                                    : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-700'
+                                className={`w-full text-left p-5 rounded-[1.5rem] border transition-all duration-300 shadow-sm ${selectedBus === bus.driverId
+                                    ? 'bg-blue-600 dark:bg-blue-700 text-white border-blue-600 dark:border-blue-500 ring-4 ring-blue-100 dark:ring-blue-900/30 -translate-y-1'
+                                    : 'bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-100 dark:border-white/5 text-gray-700 dark:text-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
@@ -354,16 +355,16 @@ const StudentDashboard = () => {
                                     </div>
                                     <Navigation size={16} className={selectedBus === bus.driverId ? 'text-white' : 'text-gray-400'} />
                                 </div>
-                                <div className={`mt-2 text-xs flex justify-between ${selectedBus === bus.driverId ? 'text-blue-100' : 'text-gray-500'}`}>
+                                <div className={`mt-3 text-[10px] uppercase font-black tracking-widest flex justify-between items-center ${selectedBus === bus.driverId ? 'text-blue-100' : 'text-gray-400 dark:text-gray-600'}`}>
                                     <span>
-                                        Last Update: {(() => {
+                                        {(() => {
                                             const diff = Math.floor((now - (bus.lastUpdated || Date.now())) / 1000);
-                                            if (diff < 15) return 'just now';
-                                            if (diff < 60) return `${diff}s ago`;
-                                            return `${Math.floor(diff / 60)}m ago`;
+                                            if (diff < 15) return 'LIVE NOW';
+                                            if (diff < 60) return `${diff}S AGO`;
+                                            return `${Math.floor(diff / 60)}M AGO`;
                                         })()}
                                     </span>
-                                    <span>Click to focus</span>
+                                    <span className={selectedBus === bus.driverId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity'}>Focused</span>
                                 </div>
                             </button>
                         ))
