@@ -3,6 +3,7 @@ import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 import { MapPin, AlertTriangle, Power, LogOut } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
 const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
 
@@ -24,6 +25,8 @@ const DriverDashboard = () => {
     const [startTime, setStartTime] = useState(null);
     const [lastSentTime, setLastSentTime] = useState(null);
     const [shuttleNumber, setShuttleNumber] = useState(null);
+    const [showGpsModal, setShowGpsModal] = useState(false);
+    const [showBatteryGuide, setShowBatteryGuide] = useState(false);
 
     // We use a ref for location to access it inside the worker callback without closure stale state
     const locationRef = useRef(null);
@@ -199,6 +202,26 @@ const DriverDashboard = () => {
 
     const startSharing = async () => {
         if (!socket || !user) return;
+
+        // 1. Check Permissions & GPS Status
+        try {
+            const perm = await Geolocation.checkPermissions();
+            if (perm.location !== 'granted') {
+                const req = await Geolocation.requestPermissions();
+                if (req.location !== 'granted') {
+                    setErrorMsg("Location permission denied. Cannot start tracking.");
+                    return;
+                }
+            }
+
+            // Test if GPS is actually ON by trying a quick poll
+            await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000 });
+        } catch (err) {
+            console.error("GPS Check Failed:", err);
+            // On Android, if GPS is OFF, getCurrentPosition throws an error
+            setShowGpsModal(true);
+            return;
+        }
         
         if ('Notification' in window && Notification.permission !== 'granted') {
             await Notification.requestPermission();
@@ -428,6 +451,26 @@ const DriverDashboard = () => {
                     </button>
                 </div>
 
+                {/* Battery Optimization Banner */}
+                {Capacitor.isNativePlatform() && !isSharing && (
+                    <div className="bg-yellow-50 p-4 border-b border-yellow-100 flex items-start gap-3">
+                        <AlertTriangle className="text-yellow-600 shrink-0 mt-0.5" size={18} />
+                        <div className="flex-1">
+                            <p className="text-xs font-bold text-yellow-800">Background Tracking Tip</p>
+                            <p className="text-[10px] text-yellow-700 mt-1">
+                                For permanent background tracking, ensure battery optimization is set to 
+                                <span className="font-bold"> "Unrestricted"</span> in App Info.
+                            </p>
+                            <button 
+                                onClick={() => setShowBatteryGuide(true)}
+                                className="text-[10px] text-blue-600 font-bold mt-1 underline"
+                            >
+                                View Step-by-Step Guide
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="p-8 flex flex-col space-y-8">
                     {/* Status Indicator */}
                     <div className="flex flex-col items-center justify-center py-4">
@@ -507,6 +550,54 @@ const DriverDashboard = () => {
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1 }}
                 src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAAz5tb292AAAAbG12aGQAAAAA629nAAAAAADrb2cAAAH0AAAAEAAAAAAABAAAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACHBhc3AAAAABAAAAAQAAAAABAAAAAQAAAF91ZHRhAAAAW21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAAYXQ3NwAAACBlbHN0AAAAAAAAAAEAAAH0AAAAAAABAAAAAQAAAAABTG1kYXQAAAAAAAAAIxe4wA33/w=="
             />
+
+            {/* GPS DISBLED MODAL */}
+            {showGpsModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-6">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <AlertTriangle className="text-red-600 w-10 h-10" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900">Location Turned Off</h3>
+                        <p className="text-gray-500 text-sm">
+                            Your device's GPS (Location Services) is turned off. We need it to track the shuttle position.
+                        </p>
+                        <button 
+                            onClick={() => setShowGpsModal(false)}
+                            className="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all"
+                        >
+                            I've Turned It On
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* BATTERY GUIDE MODAL */}
+            {showBatteryGuide && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000] p-6">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full space-y-6 shadow-2xl overflow-y-auto max-h-[80vh]">
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                             Unrestricted Access
+                        </h3>
+                        <div className="space-y-4 text-sm text-gray-600">
+                            <p>To ensure location doesn't stop in the background:</p>
+                            <ol className="list-decimal pl-5 space-y-3">
+                                <li>Long-press the <strong>Shuttle App icon</strong> on your home screen.</li>
+                                <li>Tap <strong>"App Info"</strong> (or the 'i' icon).</li>
+                                <li>Go to <strong>"Battery"</strong> or "Battery Usage".</li>
+                                <li>Select <strong>"Unrestricted"</strong> (it may be on 'Optimized').</li>
+                                <li>Also ensure <strong>"Background Location"</strong> is set to "Allow all the time" in Permissions.</li>
+                            </ol>
+                        </div>
+                        <button 
+                            onClick={() => setShowBatteryGuide(false)}
+                            className="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-2xl active:scale-95 transition-all"
+                        >
+                            Got it, I'll do this
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -11,7 +11,12 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         const serverUrl = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000`;
         console.log('Connecting to Socket URL:', serverUrl);
-        const newSocket = io(serverUrl);
+        const newSocket = io(serverUrl, {
+            pingInterval: 5000,
+            pingTimeout: 10000,
+            reconnection: true,
+            reconnectionAttempts: Infinity
+        });
         setSocket(newSocket);
 
         return () => newSocket.close();
