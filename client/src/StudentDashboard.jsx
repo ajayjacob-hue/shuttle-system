@@ -101,19 +101,23 @@ const StudentDashboard = () => {
         };
 
         const handleOffline = (data) => {
-            // data: { socketId }
-            // We need to find which driverId had this socketId
+            // data: { socketId, driverId }
             setDrivers(prev => {
                 const updated = { ...prev };
                 let removedId = null;
 
-                // Find key where socketId matches
-                Object.keys(updated).forEach(dId => {
-                    if (updated[dId].socketId === data.socketId) {
-                        delete updated[dId];
-                        removedId = dId;
-                    }
-                });
+                if (data.driverId && updated[data.driverId]) {
+                    removedId = data.driverId;
+                    delete updated[data.driverId];
+                } else if (data.socketId) {
+                    // Fallback to searching by socketId if driverId isn't provided (unlikely now)
+                    Object.keys(updated).forEach(dId => {
+                        if (updated[dId].socketId === data.socketId) {
+                            delete updated[dId];
+                            removedId = dId;
+                        }
+                    });
+                }
 
                 // If we removed the currently selected bus, deselect it
                 if (removedId && selectedBus === removedId) {
@@ -181,7 +185,7 @@ const StudentDashboard = () => {
     }, [drivers, userLoc]);
 
     // Get User Location logic
-    const fetchLocation = useCallback(async () => {
+    const fetchLocation = useCallback(async (showModal = true) => {
         if (Capacitor.isNativePlatform()) {
             try {
                 const perm = await Geolocation.checkPermissions();
@@ -197,7 +201,7 @@ const StudentDashboard = () => {
             } catch (err) {
                 console.error("Location Error:", err);
                 // This error typically happens if GPS is OFF on Android
-                setShowGpsModal(true);
+                if (showModal) setShowGpsModal(true);
             }
         } else if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -213,7 +217,7 @@ const StudentDashboard = () => {
     }, []);
 
     useEffect(() => {
-        fetchLocation();
+        fetchLocation(true); // Show modal on initial mount failure
     }, [fetchLocation]);
 
     const activeBuses = Object.values(drivers);
@@ -259,7 +263,16 @@ const StudentDashboard = () => {
                     />
 
                     {/* Controls Overlay */}
-                    <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-2">
+                    <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-3">
+                        {/* Refresh Location */}
+                        <button
+                            onClick={() => fetchLocation(true)}
+                            className="bg-white p-3 rounded-full shadow-lg text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                            title="Refresh My Location"
+                        >
+                            <RefreshCw size={24} />
+                        </button>
+
                         {/* Recenter on User */}
                         <button
                             onClick={handleFocusUser}
@@ -407,7 +420,7 @@ const StudentDashboard = () => {
                             Your device's GPS (Location Services) is turned off. We need it to find your position on the map.
                         </p>
                         <button 
-                            onClick={fetchLocation}
+                            onClick={() => { setShowGpsModal(false); setTimeout(() => fetchLocation(false), 500); }}
                             className="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all"
                         >
                             I've Turned It On

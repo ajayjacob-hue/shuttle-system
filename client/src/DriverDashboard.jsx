@@ -200,7 +200,7 @@ const DriverDashboard = () => {
         }
     };
 
-    const startSharing = async () => {
+    const startSharing = async (showModal = true) => {
         if (!socket || !user) return;
 
         // 1. Check Permissions & GPS Status
@@ -219,11 +219,11 @@ const DriverDashboard = () => {
         } catch (err) {
             console.error("GPS Check Failed:", err);
             // On Android, if GPS is OFF, getCurrentPosition throws an error
-            setShowGpsModal(true);
+            if (showModal) setShowGpsModal(true);
             return;
         }
 
-        setShowGpsModal(false); // Close modal if GPS check passes sucessfully
+        setShowGpsModal(false); // Close modal if GPS check passes successfully
         
         if ('Notification' in window && Notification.permission !== 'granted') {
             await Notification.requestPermission();
@@ -287,14 +287,27 @@ const DriverDashboard = () => {
         }
     };
 
-    const emitLocation = (lat, lng) => {
-        if (socket && socket.connected && user) {
-            socket.emit('update_location', {
-                driverId: user.email,
-                lat: lat,
-                lng: lng
-            });
+    const emitLocation = async (lat, lng) => {
+        if (!user) return;
+        const data = { driverId: user.email, lat, lng };
+
+        if (socket && socket.connected) {
+            socket.emit('update_location', data);
             setSentCount(prev => prev + 1);
+        } else {
+            // FALLBACK TO HTTP IN BACKGROUND (When socket is suspended)
+            try {
+                const VITE_API_URL = import.meta.env.VITE_API_URL || ''; 
+                await fetch(`${VITE_API_URL}/api/driver/location`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                setSentCount(prev => prev + 1);
+                setLastSentTime(new Date().toLocaleTimeString() + " (HTTP)");
+            } catch (err) {
+                console.error("HTTP Fallback Error:", err);
+            }
         }
     };
 
@@ -565,7 +578,7 @@ const DriverDashboard = () => {
                             Your device's GPS (Location Services) is turned off. We need it to track the shuttle position.
                         </p>
                         <button 
-                            onClick={startSharing}
+                            onClick={() => { setShowGpsModal(false); setTimeout(() => startSharing(false), 500); }}
                             className="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all"
                         >
                             I've Turned It On

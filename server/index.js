@@ -62,11 +62,13 @@ const VIT_VELLORE_CENTER = point([79.1559, 12.9692]); // [lng, lat] for turf
 const GEOFENCE_RADIUS_KM = 5000;
 
 // State
-const activeDrivers = new Map(); // Stores socket.id -> { driverId, shuttleNumber, lat, lng, lastUpdate }
+// State
+const activeDrivers = new Map(); // Stores socket.id -> { driverId, shuttleNumber }
+const liveDrivers = new Map();   // Persistent: driverId (email) -> { lat, lng, lastUpdate, shuttleNumber, socketId }
 
 function getNextShuttleNumber() {
   const usedNumbers = new Set();
-  for (const driver of activeDrivers.values()) {
+  for (const driver of liveDrivers.values()) {
     if (driver.shuttleNumber) usedNumbers.add(driver.shuttleNumber);
   }
   let num = 1;
@@ -99,11 +101,11 @@ io.on('connection', async (socket) => {
       console.log(`Socket ${socket.id} joined as ${role}`);
 
       const driversList = {};
-      activeDrivers.forEach((val, key) => {
+      liveDrivers.forEach((val, key) => {
         if (val.lat !== null && val.lng !== null) {
           driversList[key] = {
-            socketId: key,
-            driverId: val.driverId,
+            socketId: val.socketId || key,
+            driverId: key,
             shuttleNumber: val.shuttleNumber,
             lat: val.lat,
             lng: val.lng,
@@ -119,11 +121,11 @@ io.on('connection', async (socket) => {
 
       // Send active drivers to admin too
       const driversList = {};
-      activeDrivers.forEach((val, key) => {
+      liveDrivers.forEach((val, key) => {
         if (val.lat !== null && val.lng !== null) {
           driversList[key] = {
-            socketId: key,
-            driverId: val.driverId,
+            socketId: val.socketId || key,
+            driverId: key,
             shuttleNumber: val.shuttleNumber,
             lat: val.lat,
             lng: val.lng,
@@ -216,8 +218,9 @@ io.on('connection', async (socket) => {
       return;
     }
 
-    // Inside Geofence -> Broadcast
-    const assignedShuttleNumber = existingShuttleNumber || getNextShuttleNumber();
+    // Inside Geofence -> Update Persistent State
+    const existing = liveDrivers.get(data.driverId);
+    const assignedShuttleNumber = (existing && existing.shuttleNumber) || getNextShuttleNumber();
     
     const driverInfo = {
       socketId: socket.id,
@@ -228,7 +231,8 @@ io.on('connection', async (socket) => {
       lastUpdate: Date.now()
     };
 
-    activeDrivers.set(socket.id, driverInfo);
+    activeDrivers.set(socket.id, { driverId: data.driverId, shuttleNumber: assignedShuttleNumber });
+    liveDrivers.set(data.driverId, driverInfo);
 
     // Send the shuttle number specific to this driver
     socket.emit('shuttle_info', { shuttleNumber: assignedShuttleNumber });
@@ -239,19 +243,58 @@ io.on('connection', async (socket) => {
 
   socket.on('stop_sharing', () => {
     if (activeDrivers.has(socket.id)) {
+      const { driverId } = activeDrivers.get(socket.id);
       activeDrivers.delete(socket.id);
-      io.to('student').to('admin').emit('driver_offline', { socketId: socket.id });
+      if (driverId) liveDrivers.delete(driverId);
+      io.to('student').to('admin').emit('driver_offline', { socketId: socket.id, driverId });
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
     if (activeDrivers.has(socket.id)) {
+      const { driverId } = activeDrivers.get(socket.id);
+      // NOTE: We don't delete from liveDrivers on disconnect! 
+      // This allows HTTP fallback to continue.
       activeDrivers.delete(socket.id);
-      io.to('student').to('admin').emit('driver_offline', { socketId: socket.id });
     }
   });
 });
+
+// HTTP API FOR BACKGROUND UPDATES (FALLBACK)
+app.post('/api/driver/location', (req, res) => {
+  const { driverId, lat, lng } = req.body;
+  if (!driverId || !lat || !lng) return res.status(400).json({ error: 'Missing data' });
+
+  const existing = liveDrivers.get(driverId);
+  const shuttleNumber = (existing && existing.shuttleNumber) || getNextShuttleNumber();
+
+  const driverInfo = {
+    socketId: (existing && existing.socketId) || `http-${driverId.split('@')[0]}`,
+    driverId,
+    shuttleNumber,
+    lat,
+    lng,
+    lastUpdate: Date.now()
+  };
+
+  liveDrivers.set(driverId, driverInfo);
+
+  // Broadcast to tracking screens
+  io.to('student').to('admin').emit('shuttle_moved', driverInfo);
+  res.json({ success: true, shuttleNumber });
+});
+
+// Periodic Cleanup for Stale Drivers (45 seconds without any update)
+setInterval(() => {
+  const now = Date.now();
+  liveDrivers.forEach((val, driverId) => {
+    if (now - val.lastUpdate > 45000) {
+      console.log(`Cleaning up stale driver: ${driverId}`);
+      liveDrivers.delete(driverId);
+      io.to('student').to('admin').emit('driver_offline', { socketId: val.socketId, driverId });
+    }
+  });
+}, 10000);
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/dist')));
