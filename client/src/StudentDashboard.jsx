@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
@@ -72,6 +72,7 @@ const StudentDashboard = () => {
     const [userLoc, setUserLoc] = useState(null);
     const [etas, setEtas] = useState({}); // Keyed by driverId
     const [routes, setRoutes] = useState([]);
+    const focusTimeoutRef = useRef(null);
 
     // Update 'now' every second to force UI refresh for "seconds ago" timer
     useEffect(() => {
@@ -201,11 +202,17 @@ const StudentDashboard = () => {
             zoom: 18,
             trigger: Date.now()
         });
+
+        if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+        focusTimeoutRef.current = setTimeout(() => {
+            setSelectedBus(null);
+        }, 5000);
     };
 
     const handleFocusUser = () => {
         if (userLoc) {
             setSelectedBus(null); // Deselect bus when focusing on self
+            if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
             setMapCenterTarget({
                 pos: [userLoc.lat, userLoc.lng],
                 zoom: 17,
@@ -351,7 +358,7 @@ const StudentDashboard = () => {
                                     <span>
                                         Last Update: {(() => {
                                             const diff = Math.floor((now - (bus.lastUpdated || Date.now())) / 1000);
-                                            if (diff < 5) return 'just now';
+                                            if (diff < 15) return 'just now';
                                             if (diff < 60) return `${diff}s ago`;
                                             return `${Math.floor(diff / 60)}m ago`;
                                         })()}

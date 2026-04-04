@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext'; // Auth
 import L from 'leaflet';
-import { Bus, Trash2, Save, StopCircle, Plus, Edit3, CheckCircle, XCircle, LogOut, UserCheck } from 'lucide-react';
+import { Bus, Trash2, Save, StopCircle, Plus, Edit3, CheckCircle, XCircle, LogOut, UserCheck, ShieldCheck } from 'lucide-react';
 
 // Reusing icon logic (could be refactored to shared utility)
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -275,31 +275,55 @@ const AdminDashboard = () => {
     // --- ADMIN LOGIN SCREEN ---
     if (!user || user.role !== 'admin') {
         return (
-            <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
-                <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
-                    <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 flex items-center justify-center gap-2">
-                        <UserCheck className="text-blue-600" /> Admin Access
-                    </h2>
-                    {loginError && <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm text-center">{loginError}</div>}
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <input
-                            type="text"
-                            placeholder="Username"
-                            className="w-full border p-2 rounded"
-                            value={loginEmail}
-                            onChange={e => setLoginEmail(e.target.value)}
-                        />
-                        <input
-                            type="password"
-                            placeholder="Password"
-                            className="w-full border p-2 rounded"
-                            value={loginPassword}
-                            onChange={e => setLoginPassword(e.target.value)}
-                        />
-                        <button type="submit" className="w-full bg-gray-800 text-white font-bold py-2 rounded hover:bg-gray-700">
-                            Enter Control Panel
-                        </button>
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex flex-col items-center justify-center p-4">
+                <div className="mb-8 text-center">
+                    <div className="bg-gray-800/80 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-gray-700 shadow-[0_0_30px_rgba(59,130,246,0.15)] relative overflow-hidden backdrop-blur-md">
+                        <div className="absolute inset-0 bg-blue-500/10" />
+                        <ShieldCheck size={36} className="text-blue-400 relative z-10" />
+                    </div>
+                    <h1 className="text-3xl font-extrabold text-white tracking-widest">SYSTEM ADMIN</h1>
+                    <p className="text-blue-400/80 text-xs mt-2 tracking-[0.2em] uppercase font-bold">Restricted Access</p>
+                </div>
+                
+                <div className="bg-gray-800/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-700/50">
+                    {loginError && (
+                        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl mb-6 text-sm text-center font-medium flex items-center justify-center gap-2">
+                            <XCircle size={16} /> {loginError}
+                        </div>
+                    )}
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Admin ID</label>
+                            <input
+                                type="text"
+                                className="w-full bg-gray-900/60 border border-gray-700 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-600 block shadow-inner"
+                                placeholder="..."
+                                value={loginEmail}
+                                onChange={e => setLoginEmail(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Passcode</label>
+                            <input
+                                type="password"
+                                className="w-full bg-gray-900/60 border border-gray-700 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-600 block shadow-inner"
+                                placeholder="..."
+                                value={loginPassword}
+                                onChange={e => setLoginPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="pt-4">
+                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] active:scale-[0.98] tracking-widest uppercase text-sm">
+                                Authenticate
+                            </button>
+                        </div>
                     </form>
+                </div>
+
+                <div className="mt-12">
+                     <button onClick={() => window.location.href = '/'} className="text-xs font-semibold text-gray-500 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-wider">
+                       ← Return to Public Portal
+                    </button>
                 </div>
             </div>
         );
