@@ -52,7 +52,9 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  pingInterval: 5000,
+  pingTimeout: 10000
 });
 
 // Configuration
