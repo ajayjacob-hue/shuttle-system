@@ -241,12 +241,16 @@ io.on('connection', async (socket) => {
     io.to('student').to('admin').emit('shuttle_moved', driverInfo);
   });
 
-  socket.on('stop_sharing', () => {
-    if (activeDrivers.has(socket.id)) {
-      const { driverId } = activeDrivers.get(socket.id);
+  socket.on('stop_sharing', (data) => {
+    // Standard Socket case
+    const driverId = data?.driverId;
+    if (activeDrivers.has(socket.id) || driverId) {
+      const activeDriverId = activeDrivers.get(socket.id)?.driverId || driverId;
       activeDrivers.delete(socket.id);
-      if (driverId) liveDrivers.delete(driverId);
-      io.to('student').to('admin').emit('driver_offline', { socketId: socket.id, driverId });
+      if (activeDriverId) {
+        liveDrivers.delete(activeDriverId);
+        io.to('student').to('admin').emit('driver_offline', { socketId: socket.id, driverId: activeDriverId });
+      }
     }
   });
 
@@ -282,6 +286,23 @@ app.post('/api/driver/location', (req, res) => {
   // Broadcast to tracking screens
   io.to('student').to('admin').emit('shuttle_moved', driverInfo);
   res.json({ success: true, shuttleNumber });
+});
+
+// HTTP API FOR STOPPING SHARING (FALLBACK)
+app.post('/api/driver/stop', (req, res) => {
+  const { driverId } = req.body;
+  if (!driverId) return res.status(400).json({ error: 'Missing driverId' });
+
+  const existing = liveDrivers.get(driverId);
+  liveDrivers.delete(driverId);
+
+  // Broadcast to tracking screens
+  io.to('student').to('admin').emit('driver_offline', { 
+    socketId: (existing && existing.socketId) || `http-${driverId.split('@')[0]}`, 
+    driverId 
+  });
+
+  res.json({ success: true });
 });
 
 // Periodic Cleanup for Stale Drivers (5 minutes without any update)

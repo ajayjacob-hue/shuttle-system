@@ -332,7 +332,7 @@ const DriverDashboard = () => {
         }
     };
 
-    const stopSharing = () => {
+    const stopSharing = async () => {
         if (watchId) {
             if (Capacitor.isNativePlatform()) {
                 BackgroundGeolocation.removeWatcher({ id: watchId });
@@ -340,7 +340,26 @@ const DriverDashboard = () => {
                 navigator.geolocation.clearWatch(watchId);
             }
         }
-        if (socket) socket.emit('stop_sharing');
+        
+        // Reliability: Always call the stop API and emit on socket if possible
+        const data = { driverId: user.email };
+        
+        if (socket && socket.connected) {
+            socket.emit('stop_sharing', data);
+        }
+
+        // Use Native HTTP to ensure stop signal reaches the server (even if socket is disconnected)
+        try {
+            const VITE_API_URL = import.meta.env.VITE_API_URL || '';
+            await CapacitorHttp.post({
+                url: `${VITE_API_URL}/api/driver/stop`,
+                headers: { 'Content-Type': 'application/json' },
+                data: data
+            });
+        } catch (err) {
+            console.error("HTTP Stop Error:", err);
+        }
+
         setWatchId(null);
         setIsSharing(false);
         setStartTime(null);
