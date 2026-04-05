@@ -58,21 +58,26 @@ router.post('/driver/login', async (req, res) => {
 router.post('/admin/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        // The user specified 'vitshuttle' as the new admin username
+        console.log(`Admin login attempt for: ${email}`);
+
         const admin = await User.findOne({ email, role: 'admin' });
         
         if (!admin) {
+            console.log(`Login failed: Admin user '${email}' not found in database.`);
             return res.status(401).json({ message: 'Invalid admin credentials' });
         }
 
         const isMatch = await bcrypt.compare(password, admin.password);
         if (!isMatch) {
+            console.log(`Login failed: Password mismatch for admin '${email}'.`);
             return res.status(401).json({ message: 'Invalid admin credentials' });
         }
 
+        console.log(`Admin login successful for: ${email}`);
         const token = jwt.sign({ userId: admin._id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
         res.json({ token, user: { email: admin.email, role: 'admin' } });
     } catch (error) {
+        console.error("Admin Login Error:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
