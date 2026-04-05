@@ -1,4 +1,16 @@
 require('dotenv').config();
+const dns = require('dns');
+// FIX: Custom DNS servers (8.8.8.8) to resolve MongoDB SRV record issues on local networks
+dns.setServers(['8.8.8.8']);
+
+// Environment Validation
+const requiredEnv = ['MONGO_URI', 'JWT_SECRET', 'ADMIN_EMAIL', 'ADMIN_PASSWORD'];
+const missingEnv = requiredEnv.filter(env => !process.env[env]);
+if (missingEnv.length > 0) {
+  console.error(`FATAL ERROR: Missing environment variables: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -8,6 +20,8 @@ const { point } = require('@turf/helpers');
 const path = require('path');
 const mongoose = require('mongoose');
 const Route = require('./models/Route');
+const User = require('./models/User');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(cors());
@@ -139,11 +153,22 @@ io.on('connection', async (socket) => {
   });
 
   // ADMIN EVENTS
-  socket.on('admin_login', (password, callback) => {
-    if (password === 'admin123') {
-      callback({ success: true });
-      socket.join('admin');
-    } else {
+  socket.on('admin_login', async (password, callback) => {
+    try {
+      const admin = await User.findOne({ role: 'admin' });
+      if (!admin) {
+        return callback({ success: false, message: 'Admin account not found' });
+      }
+
+      const isMatch = await bcrypt.compare(password, admin.password);
+      if (isMatch) {
+        callback({ success: true });
+        socket.join('admin');
+      } else {
+        callback({ success: false });
+      }
+    } catch (e) {
+      console.error("Admin socket login error:", e);
       callback({ success: false });
     }
   });
@@ -326,6 +351,16 @@ app.get(/.*/, (req, res) => {
   } else {
     res.status(404).send("Client build not found. Please run 'npm run build' in client directory.");
   }
+});
+
+// GLOBAL ERROR HANDLER
+app.use((err, req, res, next) => {
+  console.error("Unhandled Server Error:", err);
+  res.status(500).json({ 
+    status: 'error', 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 const PORT = process.env.PORT || 3000;

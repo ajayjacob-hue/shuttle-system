@@ -134,14 +134,24 @@ const AdminDashboard = () => {
 
 
     // Action Handlers
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        // Hardcoded admin for now as per requirements, or use real auth if we had an endpoint
-        // To keep it simple and consistent with "simulated" admin in previous steps:
-        if (loginEmail === 'admin' && loginPassword === 'admin123') {
-            login('admin-token', { role: 'admin', email: 'admin' });
-        } else {
-            setLoginError('Invalid credentials');
+        setLoginError('');
+        try {
+            const res = await fetch(`${VITE_API_URL}/api/auth/admin/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: loginEmail, password: loginPassword })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                login(data.token, data.user);
+            } else {
+                setLoginError(data.message || 'Invalid credentials');
+            }
+        } catch (err) {
+            console.error("Login error:", err);
+            setLoginError('Server connection failed');
         }
     };
 

@@ -4,7 +4,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_change_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error("FATAL ERROR: JWT_SECRET is not defined in .env");
+    process.exit(1);
+}
 
 // --- DRIVER AUTH ---
 
@@ -49,6 +53,29 @@ router.post('/driver/login', async (req, res) => {
 });
 
 // --- ADMIN ---
+
+// Admin Login
+router.post('/admin/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        // The user specified 'vitshuttle' as the new admin username
+        const admin = await User.findOne({ email, role: 'admin' });
+        
+        if (!admin) {
+            return res.status(401).json({ message: 'Invalid admin credentials' });
+        }
+
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid admin credentials' });
+        }
+
+        const token = jwt.sign({ userId: admin._id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token, user: { email: admin.email, role: 'admin' } });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
 
 // List Pending Drivers
 router.get('/admin/pending-drivers', async (req, res) => {
@@ -97,8 +124,14 @@ router.post('/admin/delete-driver', async (req, res) => {
     try {
         const { driverId, adminPassword } = req.body;
 
-        // Verify Admin Password (hardcoded check matching current system)
-        if (adminPassword !== 'admin123') {
+        // Verify Admin Password against DB
+        const admin = await User.findOne({ role: 'admin' }); // Get any admin (vitshuttle)
+        if (!admin) {
+            return res.status(500).json({ message: 'Admin account not found in system' });
+        }
+
+        const isMatch = await bcrypt.compare(adminPassword, admin.password);
+        if (!isMatch) {
             return res.status(401).json({ message: 'Unauthorized: Invalid admin password' });
         }
 

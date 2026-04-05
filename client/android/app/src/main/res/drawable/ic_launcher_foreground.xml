@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Glowing Purple Trail -->
+    <path
+        android:pathData="M22.5,81 C 30,88 75,85 90,48"
+        android:strokeColor="#9D50FF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Shuttle Bus - White Body with Perspective -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M25,68 L22,60 C21,54 24,50 30,48 L58,42 C68,40 78,44 81,54 L83,68 C84,73 81,76 77,76 L32,76 C28,76 26,73 25,68 Z" />
+
+    <!-- Dark Glass Windows -->
+    <path
+        android:fillColor="#1A0033"
+        android:pathData="M54,46 L75,48 C78,49 79,52 78,56 L75,65 L56,63 L54,46 Z" />
+    <path
+        android:fillColor="#1A0033"
+        android:pathData="M27,55 L35,54 L35,63 L28,64 Z M39,53 L51,52 L52,63 L39,63 Z" />
+
+    <!-- Headlights & Details -->
+    <path
+        android:fillColor="#1A0033"
+        android:pathData="M60,67 L68,69 L67,71 L60,70 Z M75,69 L82,68 L82,70 L76,71 Z" />
+
+    <!-- Wheels -->
+    <path
+        android:fillColor="#1A0033"
+        android:pathData="M33,76 A5,5 0 1,1 32.9,76 Z M51,77 A6,6 0 1,1 50.9,77 Z" />
+
+    <!-- White Location Pin -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M78,18 C73,18 69,22 69,27 C69,33 78,44 78,44 C78,44 87,33 87,27 C87,22 83,18 78,18 Z M78,30 A3,3 0 1,1 78.1,30 Z" />
+
+</vector>
