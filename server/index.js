@@ -54,7 +54,26 @@ app.get('/api/health', (req, res) => {
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
+  .then(async () => {
+    console.log('MongoDB Connected');
+    
+    // AUTO-SYNC ADMIN FROM ENV
+    try {
+      const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+      await User.findOneAndUpdate(
+        { role: 'admin' }, // Find existing admin
+        { 
+          email: process.env.ADMIN_EMAIL, 
+          password: hashedPassword,
+          isApproved: true
+        },
+        { upsert: true, new: true }
+      );
+      console.log(`Admin user '${process.env.ADMIN_EMAIL}' synced from environment.`);
+    } catch (e) {
+      console.error("Admin Sync Error:", e);
+    }
+  })
   .catch(err => console.error('MongoDB Connection Error:', err));
 
 mongoose.connection.on('error', err => {
