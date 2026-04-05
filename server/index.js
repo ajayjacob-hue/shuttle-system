@@ -67,7 +67,7 @@ mongoose.connect(process.env.MONGO_URI)
           password: hashedPassword,
           isApproved: true
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
       console.log(`Admin user '${process.env.ADMIN_EMAIL}' synced from environment.`);
     } catch (e) {
@@ -198,7 +198,7 @@ io.on('connection', async (socket) => {
       await Route.findOneAndUpdate(
         { id: routeData.id },
         routeData,
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
       const allRoutes = await getRoutes();
       io.emit('routes_update', allRoutes);
