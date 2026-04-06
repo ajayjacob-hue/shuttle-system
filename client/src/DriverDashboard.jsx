@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 import { MapPin, AlertTriangle, Power, LogOut } from 'lucide-react';
+import { API_URL } from './config';
 import { Capacitor, registerPlugin, CapacitorHttp } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 
@@ -297,10 +298,9 @@ const DriverDashboard = () => {
         } else {
             // FALLBACK TO HTTP IN BACKGROUND (When socket is suspended)
             try {
-                const VITE_API_URL = import.meta.env.VITE_API_URL || ''; 
                 // USE NATIVE HTTP BRIDGE TO BYPASS BACKGROUND THROTTLING
                 await CapacitorHttp.post({
-                    url: `${VITE_API_URL}/api/driver/location`,
+                    url: `${API_URL}/api/driver/location`,
                     headers: { 'Content-Type': 'application/json' },
                     data: data
                 });
@@ -345,9 +345,8 @@ const DriverDashboard = () => {
 
         // Use Native HTTP to ensure stop signal reaches the server (even if socket is disconnected)
         try {
-            const VITE_API_URL = import.meta.env.VITE_API_URL || '';
             await CapacitorHttp.post({
-                url: `${VITE_API_URL}/api/driver/stop`,
+                url: `${API_URL}/api/driver/stop`,
                 headers: { 'Content-Type': 'application/json' },
                 data: data
             });
@@ -375,10 +374,9 @@ const DriverDashboard = () => {
         setAuthLoading(true);
 
         const endpoint = isLoginMode ? '/api/auth/driver/login' : '/api/auth/driver/signup';
-        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'; // Fallback
 
         try {
-            const res = await fetch(`${VITE_API_URL}${endpoint}`, {
+            const res = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })

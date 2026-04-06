@@ -25,7 +25,12 @@ const User = require('./models/User');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-app.use(cors());
+// Enhanced CORS for mobile/web compatibility
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json()); // Parse JSON bodies
 
 // Root Route for easy checking

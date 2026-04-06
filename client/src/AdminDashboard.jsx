@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext'; // Auth
 import L from 'leaflet';
+import { API_URL } from './config'; // Centralized Config
 import { Bus, Trash2, Save, StopCircle, Plus, Edit3, CheckCircle, XCircle, LogOut, UserCheck } from 'lucide-react';
 
 // Reusing icon logic (could be refactored to shared utility)
@@ -65,13 +66,13 @@ const AdminDashboard = () => {
     const [routeColor, setRouteColor] = useState('#ff0000');
     const [snapToRoads, setSnapToRoads] = useState(true);
 
-    const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    // Using imported API_URL from config.js
 
     // Fetch Drivers
     useEffect(() => {
         if (user && user.role === 'admin' && token) {
             // Fetch Pending
-            fetch(`${VITE_API_URL}/api/auth/admin/pending-drivers`, {
+            fetch(`${API_URL}/api/auth/admin/pending-drivers`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
                 .then(res => res.json())
@@ -79,7 +80,7 @@ const AdminDashboard = () => {
                 .catch(err => {}); // Silent fail in prod
 
             // Fetch Approved (All Database Approved)
-            fetch(`${VITE_API_URL}/api/auth/admin/approved-drivers`, {
+            fetch(`${API_URL}/api/auth/admin/approved-drivers`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
                 .then(res => res.json())
@@ -142,7 +143,7 @@ const AdminDashboard = () => {
         e.preventDefault();
         setLoginError('');
         try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/admin/login`, {
+            const res = await fetch(`${API_URL}/api/auth/admin/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: loginEmail, password: loginPassword })
@@ -160,7 +161,7 @@ const AdminDashboard = () => {
 
     const handleApprove = async (driverId) => {
         try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/admin/approve-driver`, {
+            const res = await fetch(`${API_URL}/api/auth/admin/approve-driver`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -182,7 +183,7 @@ const AdminDashboard = () => {
     const handleReject = async (driverId) => {
         if (!confirm("Are you sure you want to reject and delete this sign-up request?")) return;
         try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/admin/reject-driver`, {
+            const res = await fetch(`${API_URL}/api/auth/admin/reject-driver`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -206,7 +207,7 @@ const AdminDashboard = () => {
         if (adminPassword === null) return; // Cancelled
 
         try {
-            const res = await fetch(`${VITE_API_URL}/api/auth/admin/delete-driver`, {
+            const res = await fetch(`${API_URL}/api/auth/admin/delete-driver`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
