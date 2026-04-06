@@ -45,7 +45,7 @@ const RouteDrawer = ({ isEditing, onAddPoint }) => {
 };
 
 const AdminDashboard = () => {
-    const { user, token, logout } = useAuth(); // Use token from context
+    const { user, token, login, logout } = useAuth(); // Use token from context
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');

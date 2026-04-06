@@ -37,7 +37,8 @@ const isAdmin = (req, res, next) => {
 // Driver Signup
 router.post('/driver/signup', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        let { email, password } = req.body;
+        if (email) email = email.trim().toLowerCase();
         const existingUser = await User.findOne({ email });
         if (existingUser) return res.status(400).json({ message: 'Email already exists' });
 
@@ -58,7 +59,8 @@ router.post('/driver/signup', async (req, res) => {
 // Driver Login
 router.post('/driver/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        let { email, password } = req.body;
+        if (email) email = email.trim().toLowerCase();
         const user = await User.findOne({ email, role: 'driver' });
         if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
@@ -79,7 +81,8 @@ router.post('/driver/login', async (req, res) => {
 // Admin Login
 router.post('/admin/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        let { email, password } = req.body;
+        if (email) email = email.trim().toLowerCase();
         console.log(`Admin login attempt for: ${email}`);
 
         const admin = await User.findOne({ email, role: 'admin' });
