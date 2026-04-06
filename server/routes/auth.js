@@ -10,6 +10,28 @@ if (!JWT_SECRET) {
     process.exit(1);
 }
 
+// Middleware: Verify JWT
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'Access denied. No token provided.' });
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (ex) {
+        res.status(400).json({ message: 'Invalid token.' });
+    }
+};
+
+// Middleware: Check Admin Role
+const isAdmin = (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Admins only.' });
+    }
+    next();
+};
+
 // --- DRIVER AUTH ---
 
 // Driver Signup
@@ -83,7 +105,7 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // List Pending Drivers
-router.get('/admin/pending-drivers', async (req, res) => {
+router.get('/admin/pending-drivers', verifyToken, isAdmin, async (req, res) => {
     try {
         const drivers = await User.find({ role: 'driver', isApproved: false }).select('-password');
         res.json(drivers);
@@ -93,7 +115,7 @@ router.get('/admin/pending-drivers', async (req, res) => {
 });
 
 // List All Approved Drivers
-router.get('/admin/approved-drivers', async (req, res) => {
+router.get('/admin/approved-drivers', verifyToken, isAdmin, async (req, res) => {
     try {
         const drivers = await User.find({ role: 'driver', isApproved: true }).select('-password');
         res.json(drivers);
@@ -103,7 +125,7 @@ router.get('/admin/approved-drivers', async (req, res) => {
 });
 
 // Approve Driver
-router.post('/admin/approve-driver', async (req, res) => {
+router.post('/admin/approve-driver', verifyToken, isAdmin, async (req, res) => {
     try {
         const { driverId } = req.body;
         await User.findByIdAndUpdate(driverId, { isApproved: true });
@@ -114,7 +136,7 @@ router.post('/admin/approve-driver', async (req, res) => {
 });
 
 // Reject/Delete Pending Driver
-router.post('/admin/reject-driver', async (req, res) => {
+router.post('/admin/reject-driver', verifyToken, isAdmin, async (req, res) => {
     try {
         const { driverId } = req.body;
         await User.findByIdAndDelete(driverId);
@@ -125,7 +147,7 @@ router.post('/admin/reject-driver', async (req, res) => {
 });
 
 // Delete Driver Account (Requires Admin Password)
-router.post('/admin/delete-driver', async (req, res) => {
+router.post('/admin/delete-driver', verifyToken, isAdmin, async (req, res) => {
     try {
         const { driverId, adminPassword } = req.body;
 

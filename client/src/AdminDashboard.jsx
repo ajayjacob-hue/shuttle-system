@@ -44,7 +44,7 @@ const RouteDrawer = ({ isEditing, onAddPoint }) => {
 };
 
 const AdminDashboard = () => {
-    const { user, login, logout } = useAuth();
+    const { user, token, logout } = useAuth(); // Use token from context
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
@@ -69,20 +69,24 @@ const AdminDashboard = () => {
 
     // Fetch Drivers
     useEffect(() => {
-        if (user && user.role === 'admin') {
+        if (user && user.role === 'admin' && token) {
             // Fetch Pending
-            fetch(`${VITE_API_URL}/api/auth/admin/pending-drivers`)
+            fetch(`${VITE_API_URL}/api/auth/admin/pending-drivers`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
                 .then(res => res.json())
-                .then(data => setPendingDrivers(data))
-                .catch(err => console.error("Failed to fetch pending drivers", err));
+                .then(data => setPendingDrivers(Array.isArray(data) ? data : []))
+                .catch(err => {}); // Silent fail in prod
 
             // Fetch Approved (All Database Approved)
-            fetch(`${VITE_API_URL}/api/auth/admin/approved-drivers`)
+            fetch(`${VITE_API_URL}/api/auth/admin/approved-drivers`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
                 .then(res => res.json())
-                .then(data => setApprovedDrivers(data))
-                .catch(err => console.error("Failed to fetch approved drivers", err));
+                .then(data => setApprovedDrivers(Array.isArray(data) ? data : []))
+                .catch(err => {}); // Silent fail in prod
         }
-    }, [user, refreshTrigger]);
+    }, [user, refreshTrigger, token]);
 
     useEffect(() => {
         if (!socket || !user || user.role !== 'admin') return;
@@ -150,7 +154,6 @@ const AdminDashboard = () => {
                 setLoginError(data.message || 'Invalid credentials');
             }
         } catch (err) {
-            console.error("Login error:", err);
             setLoginError('Server connection failed');
         }
     };
@@ -159,7 +162,10 @@ const AdminDashboard = () => {
         try {
             const res = await fetch(`${VITE_API_URL}/api/auth/admin/approve-driver`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ driverId })
             });
             if (res.ok) {
@@ -169,7 +175,7 @@ const AdminDashboard = () => {
                 alert("Failed to approve: " + (err.message || "Unknown error"));
             }
         } catch (e) {
-            console.error("Approve error:", e);
+            // Error handling
         }
     };
 
@@ -178,7 +184,10 @@ const AdminDashboard = () => {
         try {
             const res = await fetch(`${VITE_API_URL}/api/auth/admin/reject-driver`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ driverId })
             });
             if (res.ok) {
@@ -188,7 +197,7 @@ const AdminDashboard = () => {
                 alert("Failed to reject: " + (err.message || "Unknown error"));
             }
         } catch (e) {
-            console.error("Reject error:", e);
+            // Error handling
         }
     };
 
@@ -199,7 +208,10 @@ const AdminDashboard = () => {
         try {
             const res = await fetch(`${VITE_API_URL}/api/auth/admin/delete-driver`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ driverId, adminPassword })
             });
             if (res.ok) {
@@ -210,7 +222,7 @@ const AdminDashboard = () => {
                 alert("Failed to delete: " + (err.message || "Invalid password"));
             }
         } catch (e) {
-            console.error("Delete error:", e);
+            // Error handling
         }
     };
 

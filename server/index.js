@@ -18,6 +18,7 @@ const cors = require('cors');
 const distance = require('@turf/distance').default;
 const { point } = require('@turf/helpers');
 const path = require('path');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const Route = require('./models/Route');
 const User = require('./models/User');
@@ -92,9 +93,8 @@ const io = new Server(server, {
 
 // Configuration
 const VIT_VELLORE_CENTER = point([79.1559, 12.9692]); // [lng, lat] for turf
-const GEOFENCE_RADIUS_KM = 5000;
+const GEOFENCE_RADIUS_KM = 1;
 
-// State
 // State
 const activeDrivers = new Map(); // Stores socket.id -> { driverId, shuttleNumber }
 const liveDrivers = new Map();   // Persistent: driverId (email) -> { lat, lng, lastUpdate, shuttleNumber, socketId }
@@ -233,7 +233,6 @@ io.on('connection', async (socket) => {
 
     // DEDUPLICATION: Check if this driverId is already active on ANOTHER socket
     // If so, remove the old one to prevent ghosts
-    let existingShuttleNumber;
     for (const [sId, driver] of activeDrivers.entries()) {
       if (driver.driverId === data.driverId) {
         if (sId !== socket.id) {
@@ -241,8 +240,6 @@ io.on('connection', async (socket) => {
           activeDrivers.delete(sId);
           // Tell students to remove the old ghost immediately
           io.to('student').to('admin').emit('driver_offline', { socketId: sId });
-        } else {
-          existingShuttleNumber = driver.shuttleNumber;
         }
       }
     }

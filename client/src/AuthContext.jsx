@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, token: localStorage.getItem('token'), login, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

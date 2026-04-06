@@ -64,7 +64,6 @@ const DriverDashboard = () => {
 
         // Re-emit last location on reconnect
         socket.on('connect', () => {
-            console.log("Socket reconnected!");
             if (isSharing) {
                 socket.emit('join_role', 'driver');
                 if (locationRef.current) {
@@ -130,7 +129,7 @@ const DriverDashboard = () => {
                     handleLocationUpdate(pos.coords);
                 },
                 (err) => {
-                    console.log("Worker Tick GPS Poll failed/throttled:", err.code);
+                    // Fail silently
                 },
                 { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
             );
@@ -147,7 +146,7 @@ const DriverDashboard = () => {
                         const lock = await navigator.wakeLock.request('screen');
                         setWakeLock(lock);
                     } catch (err) {
-                        console.error("WakeLock failed:", err);
+                        // Fail silently
                     }
                 }
             };
@@ -161,7 +160,7 @@ const DriverDashboard = () => {
             document.addEventListener('visibilitychange', handleVisChange);
 
             if (audioRef.current) {
-                audioRef.current.play().catch(e => console.log("Audio autoplay blocked:", e));
+                audioRef.current.play().catch(e => {});
             }
 
             return () => {
@@ -222,7 +221,6 @@ const DriverDashboard = () => {
                 // Test if GPS is actually ON by trying a quick poll
                 await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000 });
             } catch (err) {
-                console.error("GPS Check Failed:", err);
                 // On Android, if GPS is OFF, getCurrentPosition throws an error
                 if (showModal) setShowGpsModal(true);
                 return;
@@ -244,7 +242,7 @@ const DriverDashboard = () => {
         showPersistentNotification();
 
         if (audioRef.current) {
-            audioRef.current.play().catch(console.error);
+            audioRef.current.play().catch(() => {});
         }
 
         if (Capacitor.isNativePlatform()) {
@@ -259,7 +257,6 @@ const DriverDashboard = () => {
                     },
                     (pos, err) => {
                         if (err) {
-                            console.error("Capacitor GPS Watch Error:", err);
                             setErrorMsg("GPS Error: " + err.message);
                         } else if (pos) {
                             handleLocationUpdate({ latitude: pos.latitude, longitude: pos.longitude });
@@ -268,7 +265,6 @@ const DriverDashboard = () => {
                 );
                 setWatchId(id);
             } catch (err) {
-                console.error("Failed to start Capacitor watch:", err);
                 setErrorMsg("Capacitor GPS Error: " + err.message);
             }
         } else {
@@ -278,7 +274,6 @@ const DriverDashboard = () => {
                         handleLocationUpdate(pos.coords);
                     },
                     (err) => {
-                        console.error("GPS Watch Error:", err);
                         setErrorMsg("GPS Error: " + err.message);
                     },
                     {
@@ -312,7 +307,7 @@ const DriverDashboard = () => {
                 setSentCount(prev => prev + 1);
                 setLastSentTime(new Date().toLocaleTimeString() + " (Fixed)");
             } catch (err) {
-                console.error("HTTP Fallback Error:", err);
+                // Fallback fail
             }
         }
     };
@@ -357,7 +352,7 @@ const DriverDashboard = () => {
                 data: data
             });
         } catch (err) {
-            console.error("HTTP Stop Error:", err);
+            // Error handling
         }
 
         setWatchId(null);
