@@ -193,7 +193,7 @@ const StudentDashboard = () => {
                     const req = await Geolocation.requestPermissions();
                     if (req.location !== 'granted') return;
                 }
-                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000 });
+                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 setUserLoc(loc);
                 setMapCenterTarget({ pos: [loc.lat, loc.lng], zoom: 17, trigger: Date.now() });

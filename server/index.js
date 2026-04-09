@@ -98,7 +98,7 @@ const io = new Server(server, {
 
 // Configuration
 const VIT_VELLORE_CENTER = point([79.1559, 12.9692]); // [lng, lat] for turf
-const GEOFENCE_RADIUS_KM = 1;
+const GEOFENCE_RADIUS_KM = 5;
 
 // State
 const activeDrivers = new Map(); // Stores socket.id -> { driverId, shuttleNumber }

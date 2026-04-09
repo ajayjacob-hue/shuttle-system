@@ -132,7 +132,7 @@ const DriverDashboard = () => {
                 (err) => {
                     // Fail silently
                 },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
             );
         }
     };
@@ -220,7 +220,7 @@ const DriverDashboard = () => {
                 }
 
                 // Test if GPS is actually ON by trying a quick poll
-                await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 3000 });
+                await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
             } catch (err) {
                 // On Android, if GPS is OFF, getCurrentPosition throws an error
                 if (showModal) setShowGpsModal(true);
@@ -280,7 +280,7 @@ const DriverDashboard = () => {
                     {
                         enableHighAccuracy: true,
                         maximumAge: 0,
-                        timeout: 5000
+                        timeout: 10000
                     }
                 );
                 setWatchId(id);
