@@ -389,8 +389,8 @@ const AdminDashboard = () => {
                         {approvedDrivers.length === 0 ? <p className="text-xs text-gray-500 italic">No approved drivers</p> : (
                             <div className="space-y-2 mt-2">
                                 {approvedDrivers.map(d => {
-                                    // Check if online
-                                    const onlineSocketId = Object.keys(drivers).find(sId => drivers[sId].driverId === d.email);
+                                    const onlineDriver = drivers[d.email];
+                                    const onlineSocketId = onlineDriver ? onlineDriver.socketId : null;
 
                                     return (
                                         <div key={d._id} className="bg-white p-2 rounded border border-blue-100 shadow-sm space-y-2">

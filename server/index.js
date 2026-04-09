@@ -225,10 +225,23 @@ io.on('connection', async (socket) => {
   socket.on('admin_force_stop', (targetSocketId) => {
     io.to(targetSocketId).emit('force_stop_sharing', { reason: 'Stopped by Admin' });
     // Also remove from active list immediately
+    let foundDriverId = null;
     if (activeDrivers.has(targetSocketId)) {
+      foundDriverId = activeDrivers.get(targetSocketId).driverId;
       activeDrivers.delete(targetSocketId);
-      io.to('student').to('admin').emit('driver_offline', { socketId: targetSocketId });
     }
+    // Also check liveDrivers in case of HTTP fallback
+    liveDrivers.forEach((val, driverId) => {
+      if (val.socketId === targetSocketId) {
+        foundDriverId = driverId;
+      }
+    });
+    
+    if (foundDriverId) {
+       liveDrivers.delete(foundDriverId);
+    }
+    
+    io.to('student').to('admin').emit('driver_offline', { socketId: targetSocketId, driverId: foundDriverId });
   });
 
   // Driver updates location
@@ -351,17 +364,17 @@ app.post('/api/driver/stop', (req, res) => {
   res.json({ success: true });
 });
 
-// Periodic Cleanup for Stale Drivers (5 minutes without any update)
+// Periodic Cleanup for Stale Drivers (1 minute without any update)
 setInterval(() => {
   const now = Date.now();
   liveDrivers.forEach((val, driverId) => {
-    if (now - val.lastUpdate > 300000) { // 5 minutes
+    if (now - val.lastUpdate > 60000) { // 1 minute
       console.log(`Cleaning up stale driver: ${driverId}`);
       liveDrivers.delete(driverId);
       io.to('student').to('admin').emit('driver_offline', { socketId: val.socketId, driverId });
     }
   });
-}, 30000); // Check every 30s instead of 10s to be less aggressive
+}, 15000); // Check every 15s
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/dist')));
