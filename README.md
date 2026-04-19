@@ -69,16 +69,8 @@ A comprehensive, real-time shuttle tracking solution consisting of a backend ser
    ```
 
 ## 🔐 Credentials & Security
-- Admin credentials (`vitshuttle`) can be initialized via environment variables upon the server's first startup, securely migrating and persisting them into the MongoDB database.
+- Admin credentials can be initialized via environment variables upon the server's first startup, securely migrating and persisting them into the MongoDB database.
 - All backend administrative routes and data-modifying endpoints are strictly guarded by JWT token verification.
-
-## 👨‍💻 Team
-This system was finalized and distributed among a 5-person development team, encompassing:
-- Backend Architecture & API Routes
-- Authentication & MongoDB Migrations
-- Frontend App Design & PWA Enhancements
-- Capacitor Native Compilation
-- Geofencing & Real-Time Logistics
 
 ## 📝 License
 This project is licensed under the MIT License.
